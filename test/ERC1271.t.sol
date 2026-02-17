@@ -10,10 +10,12 @@ contract ERC1271Test is Test {
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
 
     SmartAccount7702 account;
-    uint256 signerPrivateKey = 0xa11ce;
-    address signer = vm.addr(signerPrivateKey);
+    uint256 signerPrivateKey;
+    address signer;
 
     function setUp() public {
+        (signer, signerPrivateKey) = makeAddrAndKey("alice");
+
         // Simulate EIP-7702 delegation
         SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(signer, address(impl).code);
@@ -44,8 +46,7 @@ contract ERC1271Test is Test {
 
     function test_isValidSignature_erc7739_rejectsReplay() public {
         // Two different accounts should reject each other's signatures (anti-replay via domain binding)
-        uint256 otherKey = 0xb0b;
-        address otherSigner = vm.addr(otherKey);
+        address otherSigner = makeAddr("bob");
         SmartAccount7702 impl2 = new SmartAccount7702();
         vm.etch(otherSigner, address(impl2).code);
         SmartAccount7702 otherAccount = SmartAccount7702(payable(otherSigner));

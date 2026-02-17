@@ -54,13 +54,13 @@ abstract contract AttackTestsBase is Test {
     // Actors
     // -----------------------------------------------------------------------
 
-    uint256 constant ALICE_KEY = 0xa11ce;
-    address alice = vm.addr(ALICE_KEY);
+    uint256 aliceKey;
+    address alice;
 
-    uint256 constant ATTACKER_KEY = 0xbad;
-    address attacker = vm.addr(ATTACKER_KEY);
+    uint256 attackerKey;
+    address attacker;
 
-    address bundler = address(0xba5ed);
+    address bundler = makeAddr("bundler");
 
     // -----------------------------------------------------------------------
     // Contracts
@@ -79,6 +79,9 @@ abstract contract AttackTestsBase is Test {
 
     /// @dev Deploys infrastructure and simulates EIP-7702 delegation WITHOUT initializing.
     function _setupUninitialized() internal {
+        (alice, aliceKey) = makeAddrAndKey("alice");
+        (attacker, attackerKey) = makeAddrAndKey("attacker");
+
         _deployEntryPoint();
 
         SmartAccount7702 impl = new SmartAccount7702();
@@ -257,7 +260,7 @@ abstract contract AttackTestsBase is Test {
 
         // Sign with attacker's key instead of Alice's
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ATTACKER_KEY, userOpHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(attackerKey, userOpHash);
         userOp.signature = abi.encodePacked(r, s, v);
 
         // EntryPoint rejects: signature doesn't match address(this)
@@ -297,7 +300,7 @@ abstract contract AttackTestsBase is Test {
         });
 
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE_KEY, userOpHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, userOpHash);
         userOp.signature = abi.encodePacked(r, s, v);
 
         // First submission succeeds
@@ -324,8 +327,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         // Setup Bob's account
-        uint256 bobKey = 0xb0b;
-        address bob = vm.addr(bobKey);
+        address bob = makeAddr("bob");
         SmartAccount7702 impl2 = new SmartAccount7702();
         vm.etch(bob, address(impl2).code);
         SmartAccount7702 bobAccount = SmartAccount7702(payable(bob));
@@ -347,7 +349,7 @@ abstract contract AttackTestsBase is Test {
             )
         );
         bytes32 toSign = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE_KEY, toSign);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(aliceKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Valid on Alice's account

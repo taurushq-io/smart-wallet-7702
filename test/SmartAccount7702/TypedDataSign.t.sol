@@ -30,7 +30,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
     string internal constant APP_NAME = "MyToken";
     string internal constant APP_VERSION = "1";
 
-    function test_typedDataSign_validSignature() public {
+    function test_typedDataSign_validSignature() public view {
         // --- Build the application-level typed data ---
         address appContract = address(0xAABB); // simulated app contract
         bytes32 appDomainSeparator = _appDomainSeparator(appContract);
@@ -96,7 +96,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
         assertEq(result, bytes4(0x1626ba7e), "TypedDataSign signature should be valid");
     }
 
-    function test_typedDataSign_rejectsWrongSigner() public {
+    function test_typedDataSign_rejectsWrongSigner() public view {
         address appContract = address(0xAABB);
         bytes32 appDomainSeparator = _appDomainSeparator(appContract);
 
@@ -130,7 +130,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
         bytes32 toSign = keccak256(abi.encodePacked("\x19\x01", appDomainSeparator, structHash));
 
         // Sign with WRONG key
-        uint256 wrongKey = 0xbad;
+        uint256 wrongKey = uint256(keccak256(abi.encodePacked("wrong signer")));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongKey, toSign);
         bytes memory rawSig = abi.encodePacked(r, s, v);
 
@@ -144,8 +144,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
 
     function test_typedDataSign_rejectsCrossAccountReplay() public {
         // Setup a second account (Bob)
-        uint256 bobKey = 0xb0b;
-        address bob = vm.addr(bobKey);
+        address bob = makeAddr("bob");
         SmartAccount7702 impl2 = new SmartAccount7702();
         vm.etch(bob, address(impl2).code);
         SmartAccount7702 bobAccount = SmartAccount7702(payable(bob));

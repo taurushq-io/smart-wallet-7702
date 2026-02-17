@@ -23,19 +23,19 @@ abstract contract WalkthroughBase is Test {
 
     /// @dev The EOA's private key. In production, this lives in a hardware wallet
     ///      or browser extension. The key never leaves the signer's device.
-    uint256 constant ALICE_PRIVATE_KEY = 0xa11ce;
+    uint256 alicePrivateKey;
 
     /// @dev The EOA address derived from the private key.
     ///      After EIP-7702 delegation, this address has SmartAccount7702 code
     ///      but retains its own storage and ETH balance.
-    address alice = vm.addr(ALICE_PRIVATE_KEY);
+    address alice;
 
     /// @dev The recipient of the ERC-20 transfer.
-    address bob = address(0xb0b);
+    address bob = makeAddr("bob");
 
     /// @dev The bundler that submits UserOperations to the EntryPoint.
     ///      In production, this is an off-chain service (e.g., Pimlico, Alchemy).
-    address bundler = address(0xba5ed);
+    address bundler = makeAddr("bundler");
 
     // -----------------------------------------------------------------------
     // Contracts
@@ -60,6 +60,8 @@ abstract contract WalkthroughBase is Test {
 
     /// @dev Deploys the EntryPoint at its canonical address and the SmartAccount7702 implementation.
     function _deployInfrastructure() internal {
+        (alice, alicePrivateKey) = makeAddrAndKey("alice");
+
         console2.log("--- STEP 1: Deploy infrastructure ---");
 
         EntryPoint ep = new EntryPoint();
@@ -109,7 +111,7 @@ abstract contract WalkthroughBase is Test {
         bytes32 userOpHash = entryPoint.getUserOpHash(userOp);
         console2.log("UserOp hash:", vm.toString(userOpHash));
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ALICE_PRIVATE_KEY, userOpHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(alicePrivateKey, userOpHash);
         bytes memory signature = abi.encodePacked(r, s, v);
         console2.log("Signature length:", signature.length, "(expected: 65)");
         return signature;

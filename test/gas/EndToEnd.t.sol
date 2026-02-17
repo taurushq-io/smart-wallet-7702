@@ -70,7 +70,8 @@ contract EndToEndTest is SmartWalletTestBase, UseEntryPointV09 {
         // Execute and measure gas
         vm.prank(eoaUser);
         vm.startSnapshotGas("e2e_transfer_native_eoa");
-        payable(address(0x1234)).transfer(1 ether);
+        (bool success,) = payable(address(0x1234)).call{value: 1 ether}("");
+        require(success, "ETH transfer failed");
         uint256 gasUsed = vm.stopSnapshotGas();
         console2.log("test_transfer_native EOA gas:", gasUsed);
 

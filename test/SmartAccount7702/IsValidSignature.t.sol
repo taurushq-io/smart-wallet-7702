@@ -8,8 +8,8 @@ contract TestIsValidSignature is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
 
-    function testValidateSignatureWithEOASigner() public {
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+    function testValidateSignatureWithEOASigner() public view {
+        bytes32 hash = keccak256("test message");
         bytes32 toSign = _personalSignHash(hash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -17,17 +17,18 @@ contract TestIsValidSignature is SmartWalletTestBase, UseEntryPointV09 {
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
-    function testValidateSignatureWithEOASignerFailsWithWrongSigner() public {
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+    function testValidateSignatureWithEOASignerFailsWithWrongSigner() public view {
+        bytes32 hash = keccak256("test message");
         bytes32 toSign = _personalSignHash(hash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xa12ce, toSign);
+        uint256 wrongKey = uint256(keccak256(abi.encodePacked("wrong signer")));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes4 ret = account.isValidSignature(hash, signature);
         assertEq(ret, bytes4(0xffffffff));
     }
 
-    function testValidateSignatureWithInvalidSignatureLength() public {
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+    function testValidateSignatureWithInvalidSignatureLength() public view {
+        bytes32 hash = keccak256("test message");
         // Invalid signature (too short) — should return failure, not revert
         bytes memory signature = hex"deadbeef";
         bytes4 ret = account.isValidSignature(hash, signature);

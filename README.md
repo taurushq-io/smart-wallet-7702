@@ -356,7 +356,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 151 tests across 25 test suites.
+The project has 159 tests across 26 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -430,6 +430,21 @@ To increase the number of runs:
 ```bash
 forge test --match-contract TestFuzz --fuzz-runs 10000
 ```
+
+### Deploy Script Tests (`test/script/DeploySmartAccount7702.t.sol`)
+
+8 tests verifying the deployment script produces a correctly configured implementation:
+
+| Test | What it verifies |
+|---|---|
+| `test_salt_matchesExpectedPreimage` | Salt equals `keccak256("TSmart Account 7702 v1")` |
+| `test_deploy_addressIsDeterministic` | Deployed address matches CREATE2 prediction |
+| `test_implementation_initializersDisabled` | `initialize()` reverts on the implementation itself |
+| `test_implementation_entryPointIsZero` | `entryPoint()` returns `address(0)` (locked implementation) |
+| `test_implementation_supportsExpectedInterfaces` | All 6 interface IDs (ERC-165, IAccount, ERC-1271, ERC-7739, ERC-721 Receiver, ERC-1155 Receiver) |
+| `test_implementation_eip712Domain` | Domain name `"TSmart Account 7702"`, version `"1"`, correct chain/address |
+| `test_implementation_hasCode` | Non-empty bytecode |
+| `test_script_runsSuccessfully` | `DeploySmartAccount7702Script.run()` completes without reverting |
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 

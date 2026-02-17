@@ -12,10 +12,10 @@ import "../../src/SmartAccount7702.sol";
 ///      This allows running the same tests against different EntryPoint versions.
 abstract contract SmartWalletTestBase is Test {
     SmartAccount7702 public account;
-    uint256 signerPrivateKey = 0xa11ce;
-    address signer = vm.addr(signerPrivateKey);
+    uint256 signerPrivateKey;
+    address signer;
     IEntryPoint entryPoint = IEntryPoint(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
-    address bundler = address(uint160(uint256(keccak256(abi.encodePacked("bundler")))));
+    address bundler = makeAddr("bundler");
 
     // userOp values
     uint256 userOpNonce;
@@ -25,6 +25,8 @@ abstract contract SmartWalletTestBase is Test {
     function _deployEntryPoint() internal virtual;
 
     function setUp() public virtual {
+        (signer, signerPrivateKey) = makeAddrAndKey("alice");
+
         // Deploy EntryPoint at canonical address (version determined by subclass)
         _deployEntryPoint();
 
@@ -73,8 +75,7 @@ abstract contract SmartWalletTestBase is Test {
     }
 
     function _randomBytes(uint256 seed) internal pure returns (bytes memory result) {
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0x00, seed)
             let r := keccak256(0x00, 0x20)
             if lt(byte(2, r), 0x20) {

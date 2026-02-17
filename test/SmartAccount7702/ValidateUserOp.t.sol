@@ -51,7 +51,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
 
     function test_returnsOneForWrongSigner() public {
         // Sign with a different private key (not the EOA)
-        uint256 wrongKey = 0xbad;
+        (, uint256 wrongKey) = makeAddrAndKey("wrong signer");
         bytes32 userOpHash = keccak256("123");
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongKey, userOpHash);
 
