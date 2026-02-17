@@ -40,6 +40,15 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized();
 
+    /// @notice Thrown when `deploy` or `deployDeterministic` is called with empty creation code.
+    error EmptyBytecode();
+
+    /// @notice Emitted when the account is initialized with an EntryPoint.
+    event Initialized(address indexed entryPoint);
+
+    /// @notice Emitted when a contract is deployed via CREATE or CREATE2.
+    event ContractDeployed(address indexed deployed);
+
     /// @notice The EntryPoint address this account trusts for UserOp validation.
     /// @dev Set via `initialize()`, stored in the delegating EOA's storage.
     ///      Each EOA can configure its own EntryPoint after delegating to this implementation.
@@ -68,6 +77,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     function initialize(address entryPoint_) external initializer {
         if (msg.sender != address(this)) revert Unauthorized();
         _entryPoint = entryPoint_;
+        emit Initialized(entryPoint_);
     }
 
     /// @notice Reverts if the caller is not the EntryPoint.
@@ -164,6 +174,10 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         onlyEntryPointOrSelf
         returns (address deployed)
     {
+        if (creationCode.length == 0) revert EmptyBytecode();
+        // Memory-safe: writes beyond the free memory pointer but no Solidity code
+        // runs after the assembly block — the function either returns or reverts.
+        // Skipping `mstore(0x40, ...)` saves gas.
         assembly ("memory-safe") {
             let m := mload(0x40)
             calldatacopy(m, creationCode.offset, creationCode.length)
@@ -173,6 +187,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
                 revert(m, returndatasize())
             }
         }
+        emit ContractDeployed(deployed);
     }
 
     /// @notice Deploys a contract using CREATE2 (deterministic address).
@@ -193,6 +208,10 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         onlyEntryPointOrSelf
         returns (address deployed)
     {
+        if (creationCode.length == 0) revert EmptyBytecode();
+        // Memory-safe: writes beyond the free memory pointer but no Solidity code
+        // runs after the assembly block — the function either returns or reverts.
+        // Skipping `mstore(0x40, ...)` saves gas.
         assembly ("memory-safe") {
             let m := mload(0x40)
             calldatacopy(m, creationCode.offset, creationCode.length)
@@ -202,6 +221,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
                 revert(m, returndatasize())
             }
         }
+        emit ContractDeployed(deployed);
     }
 
     /// @notice Returns the address of the trusted EntryPoint.
@@ -223,6 +243,9 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     ///      Uses assembly to forward calldata directly without copying to memory,
     ///      saving gas on large payloads.
     function _call(address target, uint256 value, bytes calldata data) internal {
+        // Memory-safe: writes beyond the free memory pointer but no Solidity code
+        // runs after the assembly block — the function either succeeds silently or reverts.
+        // Skipping `mstore(0x40, ...)` saves gas.
         assembly ("memory-safe") {
             let m := mload(0x40)
             calldatacopy(m, data.offset, data.length)

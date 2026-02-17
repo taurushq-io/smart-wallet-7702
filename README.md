@@ -67,6 +67,20 @@ SmartAccount7702
 |   🛑    | Function can modify state |
 |   💵    | Function is payable       |
 
+### Custom Errors
+
+| Error | Description |
+|---|---|
+| `Unauthorized()` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
+| `EmptyBytecode()` | `deploy()` or `deployDeterministic()` called with zero-length creation code |
+
+### Events
+
+| Event | Emitted by |
+|---|---|
+| `Initialized(address indexed entryPoint)` | `initialize()` — logs the EntryPoint address set for this EOA |
+| `ContractDeployed(address indexed deployed)` | `deploy()`, `deployDeterministic()` — logs the address of each newly deployed contract |
+
 ## Initialization Model
 
 The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
@@ -78,9 +92,10 @@ The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
 2. EOA signs EIP-7702 authorization tuple
    ──> EOA's code now points to the implementation bytecode
 
-3. EOA (or anyone) calls initialize(entryPoint)
+3. EOA calls initialize(entryPoint) on itself (msg.sender == address(this))
    ──> _entryPoint stored in the EOA's own storage
    ──> initializer modifier prevents re-initialization
+   ──> only the EOA can call initialize (prevents front-running)
 ```
 
 Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The implementation contract itself is locked by `_disableInitializers()` in the constructor.
@@ -284,7 +299,7 @@ Each EOA sets its own EntryPoint via `initialize()` after delegation. This allow
 function initialize(address entryPoint_) external initializer
 ```
 
-Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. The `initializer` modifier ensures this cannot be called twice on the same EOA.
+Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. The `initializer` modifier ensures this cannot be called twice on the same EOA. Emits `Initialized(entryPoint)`.
 
 ### validateUserOp
 
@@ -322,7 +337,7 @@ function deploy(uint256 value, bytes calldata creationCode)
     external payable onlyEntryPointOrSelf returns (address deployed)
 ```
 
-Deploys a contract using CREATE. The address depends on the EOA's EVM nonce.
+Deploys a contract using CREATE. The address depends on the EOA's EVM nonce. Reverts with `EmptyBytecode()` if `creationCode` is empty. Emits `ContractDeployed(deployed)`.
 
 ### deployDeterministic
 
@@ -331,7 +346,7 @@ function deployDeterministic(uint256 value, bytes calldata creationCode, bytes32
     external payable onlyEntryPointOrSelf returns (address deployed)
 ```
 
-Deploys a contract using CREATE2. The address is deterministic: `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))`.
+Deploys a contract using CREATE2. The address is deterministic: `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))`. Reverts with `EmptyBytecode()` if `creationCode` is empty. Emits `ContractDeployed(deployed)`.
 
 ### entryPoint
 
@@ -341,9 +356,25 @@ function entryPoint() public view returns (address)
 
 Returns the EntryPoint address configured via `initialize()`.
 
-## Walkthrough Tests
+## Test Suite
 
-The `test/walkthrough/` directory contains step-by-step tests designed to be read as documentation. Each test logs every step with `console2.log` — run with `forge test -vvv` to see the full narrative.
+The project has 60 tests across 13 test suites.
+
+### Unit Tests (`test/SmartAccount7702/`)
+
+| Test File | Coverage |
+|---|---|
+| `ValidateUserOp.t.sol` | Signature validation, wrong signer, non-EntryPoint caller |
+| `Execute.t.sol` | Single call execution, access control, revert bubbling |
+| `ExecuteBatch.t.sol` | Batch execution, empty batch, revert propagation |
+| `Deploy.t.sol` | CREATE/CREATE2 deployment, empty bytecode, constructor revert, salt collision, value forwarding, access control, EntryPoint routing |
+| `IsValidSignature.t.sol` | ERC-7739 PersonalSign path, wrong signer, invalid signature length |
+| `TypedDataSign.t.sol` | ERC-7739 TypedDataSign path (EIP-712 Permit), wrong signer, cross-account replay |
+| `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls |
+
+### Walkthrough Tests (`test/walkthrough/`)
+
+Step-by-step tests designed to be read as documentation. Each test logs every step with `console2.log` — run with `forge test -vvv` to see the full narrative.
 
 | Test | Description |
 |---|---|
@@ -352,6 +383,10 @@ The `test/walkthrough/` directory contains step-by-step tests designed to be rea
 | `WalkthroughDeploy` | Contract deployment via CREATE, CREATE2, and deploy-then-interact |
 
 These tests share setup and helpers via the abstract `WalkthroughBase` contract and use a `MockPaymaster` (accept-all) for the paymaster flow.
+
+### Attack Tests (`test/AttackTests.t.sol`)
+
+14 adversarial tests that simulate attacks and pass if the attack is correctly prevented. See [Threat Model](#threat-model) for details.
 
 ## Developing
 
