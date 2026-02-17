@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.33;
+
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+
+contract MockEntryPoint {
+    mapping(address => uint256) public balanceOf;
+
+    function depositTo(address to) public payable {
+        balanceOf[to] += msg.value;
+    }
+
+    function withdrawTo(address to, uint256 amount) public payable {
+        balanceOf[msg.sender] -= amount;
+        (bool success,) = payable(to).call{value: amount}("");
+        require(success);
+    }
+
+    function validateUserOp(
+        address account,
+        PackedUserOperation memory userOp,
+        bytes32 userOpHash,
+        uint256 missingAccountFunds
+    ) public payable returns (uint256 validationData) {
+        validationData = SmartAccount7702(payable(account)).validateUserOp(userOp, userOpHash, missingAccountFunds);
+    }
+
+    receive() external payable {
+        depositTo(msg.sender);
+    }
+}
