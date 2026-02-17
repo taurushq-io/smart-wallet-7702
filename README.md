@@ -2,8 +2,6 @@
 
 A minimal [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) smart account designed for [EIP-7702](https://eips.ethereum.org/EIPS/eip-7702) delegation.
 
-> This project is a fork of [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet), simplified for the EIP-7702 single-EOA model.
-
 ## Overview
 
 With EIP-7702, an EOA delegates its execution logic to this contract. `address(this)` inside the contract **is** the EOA address, so multi-owner management is unnecessary — the EOA's private key is the sole authority.
@@ -107,12 +105,14 @@ The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
    ──> EOA's code now points to the implementation bytecode
 
 3. EOA calls initialize(entryPoint) on itself (msg.sender == address(this))
-   ──> _entryPoint stored in the EOA's own storage
+   ──> entryPoint stored in ERC-7201 namespaced storage (no slot collision risk)
    ──> initializer modifier prevents re-initialization
    ──> only the EOA can call initialize (prevents front-running)
 ```
 
 Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The implementation contract itself is locked by `_disableInitializers()` in the constructor.
+
+The `entryPoint` address is stored in [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) namespaced storage (slot `0x38a1...7a00`, derived from `"smartaccount7702.entrypoint"`). This prevents slot collisions if an EOA previously delegated to a different implementation that wrote to low slots.
 
 ## Contract Deployment (CREATE / CREATE2)
 
@@ -170,7 +170,7 @@ Without access control on `initialize()`, an attacker monitoring the mempool cou
 ```solidity
 function initialize(address entryPoint_) external initializer {
     if (msg.sender != address(this)) revert Unauthorized();
-    _entryPoint = entryPoint_;
+    _getEntryPointStorage().entryPoint = entryPoint_;
 }
 ```
 
@@ -356,7 +356,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 132 tests across 23 test suites.
+The project has 137 tests across 24 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -388,7 +388,8 @@ forge test --match-path "test/SmartAccount7702/*.t.sol"
 | `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls | — |
 | `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute | Yes |
 | `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute | Yes |
-| `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, execution, and supportsInterface | — |
+| `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, TypedDataSign, execution, executeBatch, deployDeterministic, and supportsInterface | — |
+| `StorageLocation.t.sol` | Verifies on-chain ERC-7201 slot computation matches hardcoded `ENTRY_POINT_STORAGE_LOCATION` | — |
 
 ### Walkthrough Tests (`test/walkthrough/`)
 
@@ -404,20 +405,24 @@ These tests share setup and helpers via the abstract `WalkthroughBase` contract 
 
 ### Fuzz Tests (`test/SmartAccount7702/Fuzz.t.sol`)
 
-12 property-based fuzz tests (256 runs each by default) covering the core signing and execution paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
+15 property-based fuzz tests (256 runs each by default) covering the core signing, execution, and deployment paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
 
 | Test | Property |
 |---|---|
 | `testFuzz_validateUserOp_validSignature` | Any `userOpHash` signed with the correct key always validates (returns 0) |
 | `testFuzz_validateUserOp_wrongSigner` | Any `userOpHash` signed with a random wrong key always fails (returns 1) |
 | `testFuzz_validateUserOp_garbageSignature` | Non-65-byte random data always fails signature validation |
-| `testFuzz_validateUserOp_prefund` | Fuzzed `missingAccountFunds` (1–100 ETH) is correctly transferred to the EntryPoint |
+| `testFuzz_validateUserOp_prefund` | Fuzzed `missingAccountFunds` (1–100 ETH) with independent fuzzed balance is correctly transferred; remainder stays |
 | `testFuzz_validateUserOp_zeroPrefund` | Zero prefund leaves both balances unchanged regardless of account balance |
 | `testFuzz_isValidSignature_personalSign_valid` | Any hash signed via PersonalSign with correct key returns the ERC-1271 magic value |
 | `testFuzz_isValidSignature_personalSign_wrongSigner` | Any hash signed with a wrong key returns `0xffffffff` |
 | `testFuzz_isValidSignature_garbageSignature` | Non-65-byte garbage always returns `0xffffffff` |
+| `testFuzz_isValidSignature_typedDataSign_valid` | Fuzzed permit parameters through full ERC-7739 TypedDataSign encoding validate correctly |
 | `testFuzz_execute_ethTransfer` | Fuzzed ETH amounts transfer correctly to fuzzed recipients |
 | `testFuzz_execute_erc20Transfer` | Fuzzed ERC-20 amounts transfer correctly to fuzzed recipients |
+| `testFuzz_executeBatch_multipleValues` | Fuzzed number of calls (1–8) with fuzzed ETH values distribute correctly |
+| `testFuzz_deployDeterministic_predictedAddress` | Fuzzed salt produces deployed address matching CREATE2 prediction |
+| `test_supportsInterface_knownIds` | All 6 known interface IDs return `true` |
 | `testFuzz_supportsInterface_unknownId` | Random unknown interface IDs always return `false` |
 
 To increase the number of runs:
@@ -468,6 +473,10 @@ forge script script/DeploySmartAccount7702.s.sol --rpc-url $RPC_URL --account $A
 cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 ```
 
-## Influences
+## References
 
 Based on [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet), with code originally from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol). Also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol) and [LightAccount](https://github.com/alchemyplatform/light-account).
+
+## Intellectual property
+
+This code is copyright (c) 2026 Taurus SA and is licensed under the MIT
