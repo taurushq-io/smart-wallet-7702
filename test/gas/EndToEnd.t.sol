@@ -32,6 +32,7 @@ contract EndToEndTest is SmartWalletTestBase {
         SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(signer, address(impl).code);
         account = SmartAccount7702(payable(signer));
+        vm.prank(signer);
         account.initialize(address(entryPoint));
 
         // Fund wallets with ETH

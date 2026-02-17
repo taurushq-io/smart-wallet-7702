@@ -55,10 +55,18 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     }
 
     /// @notice Initializes the account with the trusted EntryPoint address.
-    /// @dev Must be called once after EIP-7702 delegation. The `initializer` modifier ensures
-    ///      this can only be called once per storage context (i.e., once per delegating EOA).
+    ///
+    /// @dev Must be called once after EIP-7702 delegation. Only the EOA itself can call this
+    ///      (`msg.sender == address(this)`), which prevents front-running attacks where an
+    ///      attacker sets a malicious EntryPoint before the owner.
+    ///
+    ///      In the EIP-7702 flow, the EOA signs a type-4 transaction that includes both the
+    ///      authorization tuple (setting the code) and a call to `initialize()` as calldata
+    ///      (with `to = address(this)`). This makes delegation and initialization atomic.
+    ///
     /// @param entryPoint_ The EntryPoint address this account will trust.
     function initialize(address entryPoint_) external initializer {
+        if (msg.sender != address(this)) revert Unauthorized();
         _entryPoint = entryPoint_;
     }
 

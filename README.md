@@ -128,6 +128,109 @@ bytes memory callData = abi.encodeCall(
 );
 ```
 
+## Threat Model
+
+This section documents the attack vectors analyzed against SmartAccount7702, how each is mitigated, and the one critical vulnerability that was found and fixed. All attacks are covered by tests in `test/AttackTests.t.sol`.
+
+### Vulnerability Found and Fixed: Front-Running `initialize()`
+
+**Severity:** Critical
+
+**Description:** The original `initialize()` function had no access control — anyone could call it. After an EOA delegates its code via EIP-7702, there is a window before `initialize()` is called. An attacker monitoring the mempool could front-run the owner's `initialize()` call and set a malicious contract as the EntryPoint.
+
+**Attack flow (before fix):**
+
+```
+1. Alice delegates her EOA to SmartAccount7702 via EIP-7702
+2. Attacker sees the delegation in the mempool
+3. Attacker calls alice.initialize(attackerContract) with higher gas
+4. attackerContract is now the trusted "EntryPoint"
+5. attackerContract calls alice.execute(usdc, 0, transfer(attacker, balance))
+6. onlyEntryPointOrSelf passes because msg.sender == entryPoint()
+7. Alice's tokens are drained
+```
+
+**Fix applied:** `initialize()` now requires `msg.sender == address(this)`:
+
+```solidity
+function initialize(address entryPoint_) external initializer {
+    if (msg.sender != address(this)) revert Unauthorized();
+    _entryPoint = entryPoint_;
+}
+```
+
+Only the EOA itself can call `initialize()`. In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(this)` and `data = abi.encodeCall(initialize, (entryPoint))`. This makes delegation and initialization atomic in a single transaction.
+
+### Attack: Unauthorized Execution
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| Random address calls `execute()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedExecute_reverts` |
+| Random address calls `executeBatch()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedExecuteBatch_reverts` |
+| Random address calls `deploy()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedDeploy_reverts` |
+| Random address calls `deployDeterministic()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedDeployDeterministic_reverts` |
+
+The `onlyEntryPointOrSelf` modifier ensures only two callers are allowed:
+- The trusted EntryPoint (set via `initialize()`)
+- The EOA itself (`msg.sender == address(this)`, for direct transactions)
+
+### Attack: ETH and Token Theft
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| Drain ETH via `execute(attacker, balance, "")` | `onlyEntryPointOrSelf` blocks unauthorized callers | `test_attack_stealEther_reverts` |
+| Drain ERC-20 via `execute(token, 0, transfer(...))` | Same access control | `test_attack_stealTokens_reverts` |
+
+Even if the attacker knows the exact calldata needed to drain the account, they cannot invoke `execute()` because only the EntryPoint or the EOA itself is authorized.
+
+### Attack: Re-Initialization
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| Call `initialize()` again to change EntryPoint | OpenZeppelin `Initializable` reverts on second call | `test_attack_reinitialize_reverts` |
+
+The `initializer` modifier (from OpenZeppelin) tracks initialization state in ERC-7201 namespaced storage. Once `initialize()` has been called, any subsequent call reverts — even from the EOA itself.
+
+### Attack: Signature Attacks
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| UserOp signed by wrong private key | `_rawSignatureValidation` returns `false`, `validateUserOp` returns 1 (SIG_VALIDATION_FAILED) | `test_attack_wrongSignerUserOp_fails` |
+| Replay a valid UserOp (same nonce) | EntryPoint nonce system rejects duplicate nonces | `test_attack_replayUserOp_reverts` |
+| Replay ERC-1271 signature on different account | ERC-7739 domain separator includes `address(this)`, so signature is invalid on any other account | `test_attack_erc1271CrossAccountReplay_rejected` |
+| Call `validateUserOp` directly (not via EntryPoint) | `onlyEntryPoint` modifier reverts | `test_attack_validateUserOpFromNonEntryPoint_reverts` |
+
+Signature security relies on three layers:
+1. **ECDSA recovery**: `ecrecover(hash, sig) == address(this)` — only the EOA's private key can produce valid signatures
+2. **EntryPoint nonce**: Each UserOp must carry a fresh nonce from the EntryPoint's nonce mapping, preventing replay
+3. **ERC-7739 domain binding**: ERC-1271 signatures include the account address in the EIP-712 domain separator, preventing cross-account replay
+
+### Attack: Uninitialized Account
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| Exploit account before `initialize()` is called | `entryPoint()` returns `address(0)`. No real caller can match `address(0)`, so `onlyEntryPoint` blocks everything. `onlyEntryPointOrSelf` only allows the EOA itself. | `test_attack_uninitializedAccount_isInert` |
+
+An uninitialized account is **inert**: it cannot process UserOperations (no EntryPoint) and cannot be called by anyone except the EOA itself. This is a safe default — the account is non-functional but not exploitable.
+
+### Attack: Initialize via Callback
+
+| Attack | Mitigation | Test |
+|---|---|---|
+| Contract tries to call `initialize()` during a callback | `msg.sender` is the calling contract, not `address(this)` | `test_attack_initializeViaCallback_reverts` |
+
+Even if a malicious contract receives a callback from the wallet, it cannot call `initialize()` because `msg.sender` would be the malicious contract's address, not the EOA's address.
+
+### Residual Risks
+
+These risks are inherent to the EIP-7702 model and cannot be mitigated at the smart contract level:
+
+| Risk | Description |
+|---|---|
+| **Private key compromise** | If the EOA's private key is stolen, the attacker has full control. There is no multi-sig, guardian, or social recovery — by design, the EOA key is the sole authority. |
+| **Re-delegation to malicious implementation** | The EOA can re-delegate to any contract via EIP-7702. If the owner is tricked into signing an authorization tuple pointing to a malicious implementation, the new code could drain the account. |
+| **Paymaster dependency** | The account is paymaster-only. If the paymaster goes offline, the account cannot submit UserOperations. The EOA can still send direct transactions (as `msg.sender == address(this)`). |
+
 ## Design Decisions
 
 ### No Prefund Payment

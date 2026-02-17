@@ -18,6 +18,7 @@ contract ERC1271Test is Test {
         SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(signer, address(impl).code);
         account = SmartAccount7702(payable(signer));
+        vm.prank(signer);
         account.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
     }
 
@@ -48,6 +49,7 @@ contract ERC1271Test is Test {
         SmartAccount7702 impl2 = new SmartAccount7702();
         vm.etch(otherSigner, address(impl2).code);
         SmartAccount7702 otherAccount = SmartAccount7702(payable(otherSigner));
+        vm.prank(otherSigner);
         otherAccount.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
 
         bytes32 appHash = keccak256("test message");

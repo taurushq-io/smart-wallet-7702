@@ -92,9 +92,11 @@ abstract contract WalkthroughBase is Test {
         console2.log("");
         console2.log("--- STEP 3: Initialize ---");
 
+        vm.prank(alice);
         smartAccount.initialize(address(entryPoint));
         console2.log("EntryPoint set to:", smartAccount.entryPoint());
 
+        vm.prank(alice);
         vm.expectRevert();
         smartAccount.initialize(address(0xdead));
         console2.log("Double-initialization correctly blocked");
