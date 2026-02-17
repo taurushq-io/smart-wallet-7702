@@ -123,8 +123,12 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     {
         // Pay prefund to the EntryPoint if required. When a paymaster sponsors the UserOp,
         // missingAccountFunds is 0 and this is a no-op. When self-funding, the account
-        // sends the required ETH. The EntryPoint is trusted (onlyEntryPoint), so we
-        // ignore the return value — if the account lacks funds, the EntryPoint reverts.
+        // sends the required ETH to the EntryPoint (caller).
+        //
+        // The call's return value is intentionally discarded (`pop`). If the transfer fails
+        // (e.g. insufficient balance), the EntryPoint is trusted to catch the shortfall in
+        // its own post-validation balance accounting and revert the entire UserOp.
+        // This is the standard ERC-4337 prefund pattern (used by Coinbase, Solady, etc.).
         if (missingAccountFunds > 0) {
             assembly ("memory-safe") {
                 pop(call(gas(), caller(), missingAccountFunds, 0x00, 0x00, 0x00, 0x00))
@@ -265,16 +269,22 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     // wallet cannot receive ANY ERC-1155 tokens.
 
     /// @dev Accepts ERC-721 safe transfers. Returns the `onERC721Received` magic value.
+    ///      Accepts tokens from any operator unconditionally. Since this function is `pure`
+    ///      (no state reads or writes), there is no re-entrancy vector from the callback.
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return 0x150b7a02;
     }
 
     /// @dev Accepts ERC-1155 safe transfers. Returns the `onERC1155Received` magic value.
+    ///      Accepts tokens from any operator unconditionally. Since this function is `pure`,
+    ///      there is no re-entrancy vector from the callback.
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
         return 0xf23a6e61;
     }
 
     /// @dev Accepts ERC-1155 safe batch transfers. Returns the `onERC1155BatchReceived` magic value.
+    ///      Accepts tokens from any operator unconditionally. Since this function is `pure`,
+    ///      there is no re-entrancy vector from the callback.
     function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
         external
         pure

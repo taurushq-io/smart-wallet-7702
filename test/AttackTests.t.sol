@@ -7,6 +7,7 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {SmartAccount7702} from "../src/SmartAccount7702.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
@@ -216,7 +217,7 @@ contract AttackTests is Test {
 
         // Even the EOA itself cannot re-initialize
         vm.prank(alice);
-        vm.expectRevert();
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
         smartAccount.initialize(address(malicious));
 
         // EntryPoint unchanged

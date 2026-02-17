@@ -130,9 +130,12 @@ contract TestDeploy is SmartWalletTestBase {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(1)));
         bytes32 salt = bytes32(uint256(0x5678));
 
+        // Pre-compute the deterministic address to verify topic[1]
+        address predicted = computeCreate2Address(salt, keccak256(creationCode), address(account));
+
         vm.prank(address(account));
-        vm.expectEmit(false, false, false, false);
-        emit SmartAccount7702.ContractDeployed(address(0));
+        vm.expectEmit(true, false, false, false);
+        emit SmartAccount7702.ContractDeployed(predicted);
         account.deployDeterministic(0, creationCode, salt);
     }
 

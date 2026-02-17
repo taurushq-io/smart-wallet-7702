@@ -23,8 +23,8 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 ///      6. A bundler submits the UserOperation to the EntryPoint
 ///      7. The EntryPoint validates the signature and executes the transfer
 ///
-///      Gas fees are set to 0 because this account is paymaster-only by design:
-///      it never pays gas itself (missingAccountFunds is ignored in validateUserOp).
+///      Gas fees are set to 0 in this simplified walkthrough to bypass prefund requirements.
+///      The account supports both self-funded and paymaster-sponsored UserOperations.
 ///      See WalkthroughPaymasterTest for the production-realistic version with a paymaster.
 contract WalkthroughSimpleTest is WalkthroughBase {
     function test_walkthrough_erc20Transfer_simple() public {
@@ -40,10 +40,10 @@ contract WalkthroughSimpleTest is WalkthroughBase {
         //
         // A dApp constructs a UserOperation encoding: execute(usdc.transfer(bob, 100 USDC)).
         //
-        // Gas fees are 0 because this account is paymaster-only by design.
+        // Gas fees are 0 in this simplified walkthrough to avoid prefund requirements.
         // Setting gasFees = 0 means requiredPrefund = gasLimits * maxFeePerGas = 0,
         // so the EntryPoint won't require the account to pay for gas.
-        // In production, a paymaster would cover gas and the account still wouldn't pay.
+        // In production, either a paymaster covers gas or the account self-funds.
         // -------------------------------------------------------------------
         console2.log("");
         console2.log("--- STEP 4: Build UserOperation (no paymaster) ---");
@@ -57,7 +57,7 @@ contract WalkthroughSimpleTest is WalkthroughBase {
             callData: executeCall,
             accountGasLimits: bytes32(uint256(1_000_000) << 128 | uint256(1_000_000)),
             preVerificationGas: 0,
-            gasFees: bytes32(0),             // No gas fees — paymaster-only simulation
+            gasFees: bytes32(0),             // No gas fees — simplified walkthrough
             paymasterAndData: "",            // No paymaster in this simplified version
             signature: ""
         });

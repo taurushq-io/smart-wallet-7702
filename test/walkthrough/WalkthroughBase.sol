@@ -87,7 +87,8 @@ abstract contract WalkthroughBase is Test {
         console2.log("Has code:", alice.code.length > 0);
     }
 
-    /// @dev Calls initialize(entryPoint) and verifies double-initialization is blocked.
+    /// @dev Calls initialize(entryPoint) to configure the account's trusted EntryPoint.
+    ///      Pure setup — does not assert re-initialization behavior (see AttackTests for that).
     function _initializeAccount() internal {
         console2.log("");
         console2.log("--- STEP 3: Initialize ---");
@@ -95,11 +96,6 @@ abstract contract WalkthroughBase is Test {
         vm.prank(alice);
         smartAccount.initialize(address(entryPoint));
         console2.log("EntryPoint set to:", smartAccount.entryPoint());
-
-        vm.prank(alice);
-        vm.expectRevert();
-        smartAccount.initialize(address(0xdead));
-        console2.log("Double-initialization correctly blocked");
     }
 
     /// @dev Encodes the callData for an ERC-20 transfer: execute(usdc.transfer(bob, 100 USDC)).

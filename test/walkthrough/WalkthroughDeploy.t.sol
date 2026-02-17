@@ -11,7 +11,7 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 /// @dev A minimal contract that Alice will deploy from her smart wallet.
 ///      It stores the deployer (msg.sender) and an initial value.
 ///      This demonstrates that contracts deployed via the wallet have the EOA as their creator.
-contract SimpleStorage {
+contract WalkthroughStorage {
     address public immutable deployer;
     uint256 public value;
 
@@ -51,7 +51,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         _initializeAccount();
 
         // -------------------------------------------------------------------
-        // STEP 4: Build the UserOperation — deploy SimpleStorage via CREATE
+        // STEP 4: Build the UserOperation — deploy WalkthroughStorage via CREATE
         //
         // To deploy a contract, we encode a call to `deploy(value, creationCode)`.
         // The creationCode is the contract bytecode + ABI-encoded constructor args.
@@ -66,10 +66,10 @@ contract WalkthroughDeployTest is WalkthroughBase {
         uint256 initialValue = 42;
 
         // Get the creation bytecode: contract bytecode + constructor args
-        // type(SimpleStorage).creationCode gives the bytecode
+        // type(WalkthroughStorage).creationCode gives the bytecode
         // We ABI-encode the constructor argument and append it
         bytes memory creationCode = abi.encodePacked(
-            type(SimpleStorage).creationCode,
+            type(WalkthroughStorage).creationCode,
             abi.encode(initialValue) // constructor(uint256 initialValue)
         );
 
@@ -78,7 +78,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
         // Encode the UserOp callData: smartAccount.deploy(0, creationCode)
         // - value = 0 (no ETH sent to the new contract)
-        // - creationCode = SimpleStorage bytecode + constructor args
+        // - creationCode = WalkthroughStorage bytecode + constructor args
         bytes memory deployCall = abi.encodeCall(
             SmartAccount7702.deploy,
             (0, creationCode)
@@ -127,7 +127,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         console2.log("Contract code size:", expectedAddr.code.length);
 
         // Verify constructor ran correctly
-        SimpleStorage deployed = SimpleStorage(expectedAddr);
+        WalkthroughStorage deployed = WalkthroughStorage(expectedAddr);
         assertEq(deployed.deployer(), alice, "Deployer should be Alice's EOA");
         assertEq(deployed.value(), initialValue, "Initial value should be 42");
         console2.log("deployer():", deployed.deployer(), "(= Alice)");
@@ -152,7 +152,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         _initializeAccount();
 
         // -------------------------------------------------------------------
-        // STEP 4: Build the UserOp — deploy SimpleStorage via CREATE2
+        // STEP 4: Build the UserOp — deploy WalkthroughStorage via CREATE2
         //
         // CREATE2 gives a deterministic address based on:
         //   address = keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))[12:]
@@ -169,7 +169,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         bytes32 salt = bytes32(uint256(0xdeadbeef));
 
         bytes memory creationCode = abi.encodePacked(
-            type(SimpleStorage).creationCode,
+            type(WalkthroughStorage).creationCode,
             abi.encode(initialValue)
         );
 
@@ -213,7 +213,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         assertTrue(predictedAddr.code.length > 0, "Contract should be deployed at predicted address");
         console2.log("Contract deployed at predicted address:", predictedAddr);
 
-        SimpleStorage deployed = SimpleStorage(predictedAddr);
+        WalkthroughStorage deployed = WalkthroughStorage(predictedAddr);
         assertEq(deployed.deployer(), alice, "Deployer should be Alice's EOA");
         assertEq(deployed.value(), initialValue, "Initial value should be 100");
         console2.log("deployer():", deployed.deployer(), "(= Alice)");
@@ -236,13 +236,13 @@ contract WalkthroughDeployTest is WalkthroughBase {
         _delegateVia7702();
         _initializeAccount();
 
-        // --- UserOp 1: Deploy SimpleStorage ---
+        // --- UserOp 1: Deploy WalkthroughStorage ---
         console2.log("");
         console2.log("--- UserOp 1: Deploy contract ---");
 
         uint256 initialValue = 1;
         bytes memory creationCode = abi.encodePacked(
-            type(SimpleStorage).creationCode,
+            type(WalkthroughStorage).creationCode,
             abi.encode(initialValue)
         );
 
@@ -253,14 +253,14 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
         uint64 nonceAfterDeploy = vm.getNonce(alice);
         address deployed = computeCreateAddress(alice, nonceAfterDeploy - 1);
-        assertEq(SimpleStorage(deployed).value(), 1, "Initial value should be 1");
-        console2.log("Deployed at:", deployed, "with value:", SimpleStorage(deployed).value());
+        assertEq(WalkthroughStorage(deployed).value(), 1, "Initial value should be 1");
+        console2.log("Deployed at:", deployed, "with value:", WalkthroughStorage(deployed).value());
 
         // --- UserOp 2: Call setValue on the deployed contract ---
         console2.log("");
         console2.log("--- UserOp 2: Interact with deployed contract ---");
 
-        bytes memory setValueCall = abi.encodeCall(SimpleStorage.setValue, (999));
+        bytes memory setValueCall = abi.encodeCall(WalkthroughStorage.setValue, (999));
         bytes memory executeCall = abi.encodeCall(
             SmartAccount7702.execute,
             (deployed, 0, setValueCall)
@@ -271,8 +271,8 @@ contract WalkthroughDeployTest is WalkthroughBase {
         userOp2.signature = _signUserOp(userOp2);
         _submitUserOp(userOp2);
 
-        assertEq(SimpleStorage(deployed).value(), 999, "Value should be updated to 999");
-        console2.log("Value after update:", SimpleStorage(deployed).value());
+        assertEq(WalkthroughStorage(deployed).value(), 999, "Value should be updated to 999");
+        console2.log("Value after update:", WalkthroughStorage(deployed).value());
 
         console2.log("");
         console2.log("=== Deploy + interact walkthrough complete ===");
