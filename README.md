@@ -11,27 +11,32 @@ With EIP-7702, an EOA delegates its execution logic to this contract. `address(t
 The contract supports:
 - ERC-4337 UserOperation validation (signature recovery against `address(this)`)
 - Single and batch execution (`execute`, `executeBatch`)
-- Contract deployment (`deploy`, `deployDeterministic`)
-- ERC-1271 signature validation with cross-account replay protection
-- ETH and ERC-721/ERC-1155 token receiving
+- Contract deployment via CREATE and CREATE2 (`deploy`, `deployDeterministic`)
+- ERC-1271 signature validation with ERC-7739 anti-replay protection
+- Per-EOA EntryPoint configuration via `initialize()`
+- ETH receiving (`receive`, `fallback`)
 
 ## Architecture
 
-### Contract Structure
+### Inheritance Graph
 
 ```
-SmartAccount7702 is ERC1271, IAccount, Receiver
+SmartAccount7702
+  ├── ERC7739 (OZ draft — ERC-1271 + ERC-7739 anti-replay)
+  │     ├── IERC1271
+  │     ├── EIP712 (domain separator, eip712Domain)
+  │     └── AbstractSigner
+  ├── SignerEIP7702 (OZ — _rawSignatureValidation: ecrecover == address(this))
+  │     └── AbstractSigner
+  ├── IAccount (ERC-4337)
+  └── Initializable (OZ — one-time initialization guard)
 ```
-
-| Contract | Description |
-|---|---|
-| `SmartAccount7702.sol` | Main ERC-4337 account with execute, deploy, and signature validation |
-| `ERC1271.sol` | Abstract ERC-1271 with anti-replay EIP-712 domain binding |
 
 ### Access Control
 
 | Function | Guard |
 |---|---|
+| `initialize` | `initializer` (once per EOA) |
 | `validateUserOp` | `onlyEntryPoint` |
 | `execute` / `executeBatch` | `onlyEntryPointOrSelf` |
 | `deploy` / `deployDeterministic` | `onlyEntryPointOrSelf` |
@@ -44,16 +49,16 @@ SmartAccount7702 is ERC1271, IAccount, Receiver
 | :---------------: | :--------------: | :----------------------: | :------------: | :-----------: |
 |         └         | **Function Name** |      **Visibility**      | **Mutability** | **Modifiers** |
 |                   |                  |                          |                |               |
-| **SmartAccount7702** |  Implementation  | ERC1271, IAccount, Receiver |                |               |
+| **SmartAccount7702** |  Implementation  | ERC7739, SignerEIP7702, IAccount, Initializable |                |               |
+|         └         |   initialize     |       External ❗️        |       🛑        | initializer  |
 |         └         |  validateUserOp  |       External ❗️        |       🛑        | onlyEntryPoint |
 |         └         |     execute      |       External ❗️        |       💵        | onlyEntryPointOrSelf |
 |         └         |   executeBatch   |       External ❗️        |       💵        | onlyEntryPointOrSelf |
 |         └         |      deploy      |       External ❗️        |       💵        | onlyEntryPointOrSelf |
 |         └         | deployDeterministic |    External ❗️        |       💵        | onlyEntryPointOrSelf |
 |         └         |    entryPoint    |        Public ❗️         |                |      NO❗️      |
-|         └         | _isValidSignature |      Internal 🔒        |                |               |
+|         └         | supportsInterface |       External ❗️       |                |      NO❗️      |
 |         └         |      _call       |       Internal 🔒        |       🛑        |               |
-|         └         | _domainNameAndVersion | Internal 🔒           |                |               |
 
 #### Legend
 
@@ -61,6 +66,67 @@ SmartAccount7702 is ERC1271, IAccount, Receiver
 | :----: | ------------------------- |
 |   🛑    | Function can modify state |
 |   💵    | Function is payable       |
+
+## Initialization Model
+
+The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
+
+```
+1. Deploy implementation ──> constructor() calls _disableInitializers()
+                              EIP712 immutables (name, version) baked into bytecode
+
+2. EOA signs EIP-7702 authorization tuple
+   ──> EOA's code now points to the implementation bytecode
+
+3. EOA (or anyone) calls initialize(entryPoint)
+   ──> _entryPoint stored in the EOA's own storage
+   ──> initializer modifier prevents re-initialization
+```
+
+Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The implementation contract itself is locked by `_disableInitializers()` in the constructor.
+
+## Contract Deployment (CREATE / CREATE2)
+
+The wallet can deploy contracts directly via ERC-4337 UserOperations. This is useful for deploying token contracts, proxies, or factory patterns where the wallet acts as the deployer.
+
+### How it works
+
+```
+UserOp.callData = abi.encodeCall(SmartAccount7702.deploy, (value, creationCode))
+
+EntryPoint → validateUserOp() → deploy() → CREATE opcode → new contract
+```
+
+Under EIP-7702, the deployer is `address(this)` = the EOA. So `msg.sender` in the child contract's constructor is the EOA address.
+
+### CREATE vs CREATE2
+
+| Aspect | `deploy()` (CREATE) | `deployDeterministic()` (CREATE2) |
+|---|---|---|
+| Address formula | `keccak256(rlp([deployer, nonce]))` | `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))` |
+| Deterministic | No (depends on EVM nonce) | Yes (no nonce dependency) |
+| Pre-computable | Only with exact nonce knowledge | Always (deployer + salt + bytecode) |
+| Cross-chain same address | Not guaranteed | Guaranteed |
+
+**Important:** The ERC-4337 EntryPoint nonce (UserOp replay protection) and the EVM account nonce (used by CREATE) are completely independent systems. CREATE2 is recommended when the deployed address must be known in advance, as it avoids nonce tracking entirely.
+
+### Usage Example
+
+```solidity
+// Deploy via CREATE
+bytes memory creationCode = abi.encodePacked(
+    type(MyContract).creationCode,
+    abi.encode(constructorArg)
+);
+bytes memory callData = abi.encodeCall(SmartAccount7702.deploy, (0, creationCode));
+
+// Deploy via CREATE2 (deterministic address)
+bytes32 salt = bytes32(uint256(0x1234));
+bytes memory callData = abi.encodeCall(
+    SmartAccount7702.deployDeterministic,
+    (0, creationCode, salt)
+);
+```
 
 ## Design Decisions
 
@@ -87,24 +153,35 @@ Traditional smart accounts use UUPS proxies for upgradeability. This account doe
 
 With EIP-7702, the EOA *is* the wallet. There is no need for:
 
-- **Multi-owner management**: The EOA's private key is the sole signer. `validateUserOp` verifies `ECDSA.recover(userOpHash, signature) == address(this)`.
+- **Multi-owner management**: The EOA's private key is the sole signer. `validateUserOp` verifies `ecrecover(userOpHash, signature) == address(this)`.
 - **Factory**: No proxy deployment is needed. Each EOA delegates directly to the deployed implementation contract.
-- **Initialization**: No `initialize()` call is needed. `address(this)` is already the EOA.
+
+### Initializable EntryPoint
+
+Each EOA sets its own EntryPoint via `initialize()` after delegation. This allows different EOAs to target different EntryPoint versions (v0.7, v0.8, v0.9). The implementation constructor disables initialization on itself via `_disableInitializers()`.
 
 ## Integration Flow
 
 ```
 1. Deploy SmartAccount7702 implementation contract
 2. Bob's EOA delegates to SmartAccount7702 via EIP-7702 authorization tuple
-3. No initialization needed — address(this) is already Bob
+3. Bob calls initialize(entryPoint) to set his trusted EntryPoint
 4. Bob signs EIP-2612 permit for USDC → Circle Paymaster
 5. UserOp submitted to bundler (e.g. Pimlico)
 6. EntryPoint → validateUserOp() recovers signature == address(this) ✓
 7. Circle Paymaster pays gas in USDC
-8. execute() runs the target call
+8. execute() / deploy() runs the target action
 ```
 
 ## Ethereum API
+
+### initialize
+
+```solidity
+function initialize(address entryPoint_) external initializer
+```
+
+Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. The `initializer` modifier ensures this cannot be called twice on the same EOA.
 
 ### validateUserOp
 
@@ -135,22 +212,43 @@ function executeBatch(Call[] calldata calls) external payable onlyEntryPointOrSe
 
 Executes multiple calls in a batch.
 
-### deploy / deployDeterministic
+### deploy
 
 ```solidity
-function deploy(uint256 value, bytes calldata bytecode) external payable onlyEntryPointOrSelf returns (address)
-function deployDeterministic(uint256 value, bytes calldata bytecode, bytes32 salt) external payable onlyEntryPointOrSelf returns (address)
+function deploy(uint256 value, bytes calldata creationCode)
+    external payable onlyEntryPointOrSelf returns (address deployed)
 ```
 
-Deploys contracts using CREATE or CREATE2.
+Deploys a contract using CREATE. The address depends on the EOA's EVM nonce.
+
+### deployDeterministic
+
+```solidity
+function deployDeterministic(uint256 value, bytes calldata creationCode, bytes32 salt)
+    external payable onlyEntryPointOrSelf returns (address deployed)
+```
+
+Deploys a contract using CREATE2. The address is deterministic: `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))`.
 
 ### entryPoint
 
 ```solidity
-function entryPoint() public pure returns (address)
+function entryPoint() public view returns (address)
 ```
 
-Returns the EntryPoint v0.9 address: `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108`.
+Returns the EntryPoint address configured via `initialize()`.
+
+## Walkthrough Tests
+
+The `test/walkthrough/` directory contains step-by-step tests designed to be read as documentation. Each test logs every step with `console2.log` — run with `forge test -vvv` to see the full narrative.
+
+| Test | Description |
+|---|---|
+| `WalkthroughSimple` | ERC-20 transfer via UserOp (no paymaster, gasFees=0) |
+| `WalkthroughPaymaster` | ERC-20 transfer with a paymaster covering gas (realistic fees) |
+| `WalkthroughDeploy` | Contract deployment via CREATE, CREATE2, and deploy-then-interact |
+
+These tests share setup and helpers via the abstract `WalkthroughBase` contract and use a `MockPaymaster` (accept-all) for the paymaster flow.
 
 ## Developing
 
@@ -159,6 +257,12 @@ After cloning the repo, install dependencies and run tests:
 ```bash
 forge install
 forge test
+```
+
+Run the walkthrough tests with verbose output to see the step-by-step logs:
+
+```bash
+forge test --match-path test/walkthrough -vvv
 ```
 
 ## Deploying
@@ -175,10 +279,14 @@ RPC_URL=
 Then deploy the implementation:
 
 ```bash
-forge script script/DeployFactory.s.sol --rpc-url $RPC_URL --account $ACCOUNT --broadcast
-```
+# 1. Deploy the implementation (initializers disabled on the implementation itself)
+forge script script/DeploySmartAccount7702.s.sol --rpc-url $RPC_URL --account $ACCOUNT --broadcast
 
-Each EOA then delegates to the deployed implementation address via an EIP-7702 authorization tuple.
+# 2. Each EOA delegates to the implementation via EIP-7702 authorization tuple
+
+# 3. Each EOA initializes with its chosen EntryPoint
+cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
+```
 
 ## Influences
 
