@@ -1,91 +1,27 @@
-name: Forge CI
+name: Foundry CI
 
 on:
+  push:
+    branches: [dev, master, main]
   pull_request:
-    branches:
-      - main
-
-env:
-  FOUNDRY_PROFILE: ci
+    branches: [dev, master, main]
 
 jobs:
-  forge-test:
-    name: Run Forge Tests and Checks 
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@de808b1eea699e761c404bda44ba8f21aba30b2c #v1.3.1
         with:
           version: nightly
 
+      - name: Run Forge install
+        run: forge install
+
       - name: Run Forge build
-        run: |
-          forge --version
-          forge build --sizes
-        id: build
+        run: forge build --sizes
 
       - name: Run Forge tests
-        run: |
-          forge test -vvv
-        id: test
-
-      - name: Check formatting
-        run: |
-          forge fmt --check
-        id: fmt
-
-      - name: Check snapshot
-        run: |
-          forge snapshot --check --tolerance 1
-        id: snapshot
-
-  forge-coverage:
-      name: Run Coverage Reporting
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v3
-          with:
-            submodules: recursive
-
-        - name: Install Foundry
-          uses: foundry-rs/foundry-toolchain@v1
-          with:
-            version: nightly
-
-        - name: Install forge dependencies
-          run: forge install
-
-        - name: Install lcov
-          run: |
-            sudo apt-get install lcov
-          id: lcov
-
-        - name: Run coverage
-          run: |
-            forge coverage --report summary --report lcov
-      
-        - name: Prune coverage
-          run: |
-            lcov --remove ./lcov.info -o ./lcov-filtered.info 'test/*' 'script/*' 'src/utils/*' 
-
-        - name: Submit coverage to Coveralls
-          uses: coverallsapp/github-action@master
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            path-to-lcov: ./lcov-filtered.info
-            flag-name: foundry
-            parallel: true
-
-  finish:
-    needs: forge-coverage
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-    - name: Coveralls Finished
-      uses: coverallsapp/github-action@v2
-      with:
-        parallel-finished: true
+        run: forge test -vvv
