@@ -488,6 +488,38 @@ forge script script/DeploySmartAccount7702.s.sol --rpc-url $RPC_URL --account $A
 cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 ```
 
+## Audit
+
+### Tools
+
+#### Aderyn
+
+Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
+
+- [Raw report](doc/audit/tool/aderyn/report.md) — 1 high, 4 low findings
+- [Feedback](doc/audit/tool/aderyn/report-feedback.md) — analysis and verdict for each finding
+
+| Finding | Verdict |
+|---|---|
+| **H-1**: Contract locks Ether without a withdraw function | False positive — EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
+| **L-1**: Literal instead of constant (`0x150b7a02`) | Acknowledged — mitigated by tests using `type(Interface).interfaceId` |
+| **L-2**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
+| **L-3**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn limitation) |
+| **L-4**: Uninitialized local variable (`uint256 i`) | Acknowledged — follows OpenZeppelin convention |
+
+#### Slither
+
+Static analysis was also performed using [Slither](https://github.com/crytic/slither), a Python-based Solidity and Vyper static analysis framework by Trail of Bits.
+
+- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 5 informational
+- [Feedback](doc/audit/tool/slither/slither-report-feedback.md) — analysis for each finding
+
+| Finding | Count | Verdict |
+|---|---|---|
+| **Assembly usage** (Informational) | 5 instances | Acknowledged — all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deploy`/`deployDeterministic` (CREATE/CREATE2) |
+
+No high, medium, or low severity issues were detected.
+
 ## References
 
 Based on [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet), with code originally from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol). Also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol) and [LightAccount](https://github.com/alchemyplatform/light-account).

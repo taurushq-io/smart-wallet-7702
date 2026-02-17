@@ -4,6 +4,9 @@ pragma solidity ^0.8.33;
 import {Test} from "forge-std/Test.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 
 import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
@@ -57,19 +60,14 @@ contract TestDeployScript is Test {
     // ─── Interface Support ───────────────────────────────────────────
 
     /// @dev The implementation must advertise all expected interfaces.
+    ///      Uses `type(Interface).interfaceId` so the test independently verifies the source values.
     function test_implementation_supportsExpectedInterfaces() public view {
-        // ERC-165
-        assertTrue(implementation.supportsInterface(bytes4(0x01ffc9a7)), "must support ERC-165");
-        // IAccount (ERC-4337)
+        assertTrue(implementation.supportsInterface(type(IERC165).interfaceId), "must support ERC-165");
         assertTrue(implementation.supportsInterface(type(IAccount).interfaceId), "must support IAccount");
-        // ERC-1271
-        assertTrue(implementation.supportsInterface(bytes4(0x1626ba7e)), "must support ERC-1271");
-        // ERC-7739
-        assertTrue(implementation.supportsInterface(bytes4(0x77390001)), "must support ERC-7739");
-        // IERC721Receiver
-        assertTrue(implementation.supportsInterface(bytes4(0x150b7a02)), "must support IERC721Receiver");
-        // IERC1155Receiver
-        assertTrue(implementation.supportsInterface(bytes4(0x4e2312e0)), "must support IERC1155Receiver");
+        assertTrue(implementation.supportsInterface(type(IERC1271).interfaceId), "must support ERC-1271");
+        assertTrue(implementation.supportsInterface(bytes4(0x77390001)), "must support ERC-7739"); // no standard OZ interface
+        assertTrue(implementation.supportsInterface(type(IERC721Receiver).interfaceId), "must support IERC721Receiver");
+        assertTrue(implementation.supportsInterface(type(IERC1155Receiver).interfaceId), "must support IERC1155Receiver");
     }
 
     // ─── EIP-712 Domain ──────────────────────────────────────────────

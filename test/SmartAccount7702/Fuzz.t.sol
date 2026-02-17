@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
@@ -207,14 +212,15 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     // =====================================================================
 
     /// @dev Known supported interface IDs must return true.
+    ///      Uses `type(Interface).interfaceId` so the test independently verifies the source values.
     function test_supportsInterface_knownIds() public view {
         bytes4[6] memory supported = [
-            type(IAccount).interfaceId, // 0x3a871cdd
-            bytes4(0x1626ba7e), // ERC-1271
-            bytes4(0x77390001), // ERC-7739
-            bytes4(0x150b7a02), // IERC721Receiver
-            bytes4(0x4e2312e0), // IERC1155Receiver
-            bytes4(0x01ffc9a7) // ERC-165
+            type(IAccount).interfaceId,
+            type(IERC1271).interfaceId,
+            bytes4(0x77390001), // ERC-7739 (no standard OZ interface)
+            type(IERC721Receiver).interfaceId,
+            type(IERC1155Receiver).interfaceId,
+            type(IERC165).interfaceId
         ];
         for (uint256 i; i < supported.length; i++) {
             assertTrue(account.supportsInterface(supported[i]), "known interface should be supported");
@@ -225,11 +231,11 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     function testFuzz_supportsInterface_unknownId(bytes4 interfaceId) public view {
         // Exclude all known supported interfaces
         vm.assume(interfaceId != type(IAccount).interfaceId);
-        vm.assume(interfaceId != bytes4(0x1626ba7e)); // ERC-1271
-        vm.assume(interfaceId != bytes4(0x77390001)); // ERC-7739
-        vm.assume(interfaceId != bytes4(0x150b7a02)); // IERC721Receiver
-        vm.assume(interfaceId != bytes4(0x4e2312e0)); // IERC1155Receiver
-        vm.assume(interfaceId != bytes4(0x01ffc9a7)); // ERC-165
+        vm.assume(interfaceId != type(IERC1271).interfaceId);
+        vm.assume(interfaceId != bytes4(0x77390001)); // ERC-7739 (no standard OZ interface)
+        vm.assume(interfaceId != type(IERC721Receiver).interfaceId);
+        vm.assume(interfaceId != type(IERC1155Receiver).interfaceId);
+        vm.assume(interfaceId != type(IERC165).interfaceId);
 
         assertFalse(account.supportsInterface(interfaceId), "unknown interface should not be supported");
     }
