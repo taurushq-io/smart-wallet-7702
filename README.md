@@ -159,7 +159,7 @@ bytes memory callData = abi.encodeCall(
 
 ## Threat Model
 
-This section documents the attack vectors analyzed against SmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol`.
+This section documents the attack vectors analyzed against SmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol` (v0.9) and `test/AttackTests.v08.t.sol` (v0.8).
 
 ### Front-Running `initialize()`
 
@@ -479,4 +479,4 @@ Based on [Coinbase Smart Wallet](https://github.com/coinbase/smart-wallet), with
 
 ## Intellectual property
 
-This code is copyright (c) 2026 Taurus SA and is licensed under the MIT
+This code is copyright (c) 2026 Taurus SA and is licensed under the MIT License.
