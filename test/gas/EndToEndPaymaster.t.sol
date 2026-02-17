@@ -4,19 +4,19 @@ pragma solidity ^0.8.33;
 import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
 import {SmartWalletTestBase} from "../SmartAccount7702/SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "../SmartAccount7702/entrypoint/UseEntryPointV09.sol";
 
 /// @title EndToEndPaymasterTest
 /// @notice Gas profiling with a paymaster — reflects production costs more accurately
 ///         than EndToEnd.t.sol (which uses gasFees=0 and no paymaster).
 /// @dev forge-config: default.isolate = true
-contract EndToEndPaymasterTest is SmartWalletTestBase {
+contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
     address eoaUser = address(0xe0a);
     MockERC20 usdc;
     MockTarget target;
@@ -25,18 +25,7 @@ contract EndToEndPaymasterTest is SmartWalletTestBase {
     address paymasterOwner = address(uint160(uint256(keccak256("paymasterOwner"))));
 
     function setUp() public override {
-        // Deploy EntryPoint at canonical address
-        EntryPoint ep = new EntryPoint();
-        vm.etch(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108, address(ep).code);
-
-        // Simulate EIP-7702 delegation
-        signerPrivateKey = 0xa11ce;
-        signer = vm.addr(signerPrivateKey);
-        SmartAccount7702 impl = new SmartAccount7702();
-        vm.etch(signer, address(impl).code);
-        account = SmartAccount7702(payable(signer));
-        vm.prank(signer);
-        account.initialize(address(entryPoint));
+        super.setUp();
 
         // Fund wallets with ETH
         vm.deal(address(account), 100 ether);

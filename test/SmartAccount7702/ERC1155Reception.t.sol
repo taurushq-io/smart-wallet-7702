@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 import "../mocks/MockERC1155.sol";
 
@@ -13,11 +14,12 @@ import "../mocks/MockERC1155.sol";
 ///
 ///      Unlike ERC-721 which has a non-safe `transferFrom`, ERC-1155 ONLY has safe transfers.
 ///      Without the callbacks, the wallet could NOT receive ANY ERC-1155 tokens.
-contract TestERC1155Reception is SmartWalletTestBase {
+/// @dev Abstract test logic for ERC-1155 reception. Concrete classes provide the EntryPoint version.
+abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
     MockERC1155 token;
     address alice = address(uint160(uint256(keccak256("alice"))));
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
         token = new MockERC1155();
     }
@@ -140,5 +142,12 @@ contract TestERC1155Reception is SmartWalletTestBase {
         assertEq(token.balanceOf(alice, 2), 100);
         assertEq(token.balanceOf(address(account), 1), 50);
         assertEq(token.balanceOf(address(account), 2), 100);
+    }
+}
+
+/// @dev Runs ERC-1155 reception tests against EntryPoint v0.9.
+contract TestERC1155Reception is TestERC1155ReceptionBase, UseEntryPointV09 {
+    function setUp() public override(TestERC1155ReceptionBase, SmartWalletTestBase) {
+        TestERC1155ReceptionBase.setUp();
     }
 }

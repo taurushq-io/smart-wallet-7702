@@ -2,9 +2,11 @@
 pragma solidity ^0.8.33;
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
-contract TestValidateUserOp is SmartWalletTestBase {
+/// @dev Abstract test logic for validateUserOp(). Concrete classes provide the EntryPoint version.
+abstract contract TestValidateUserOpBase is SmartWalletTestBase {
     struct _TestTemps {
         bytes32 userOpHash;
         address signer;
@@ -141,3 +143,6 @@ contract TestValidateUserOp is SmartWalletTestBase {
         assertLt(address(account).balance, 10 ether - 1 ether, "account should pay gas on top of transfer");
     }
 }
+
+/// @dev Runs validateUserOp tests against EntryPoint v0.9.
+contract TestValidateUserOp is TestValidateUserOpBase, UseEntryPointV09 {}

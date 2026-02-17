@@ -2,9 +2,11 @@
 pragma solidity ^0.8.33;
 
 import {MockTarget} from "../mocks/MockTarget.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
-contract TestExecute is SmartWalletTestBase {
+/// @dev Abstract test logic for execute(). Concrete classes provide the EntryPoint version.
+abstract contract TestExecuteBase is SmartWalletTestBase {
     // from Solady tests
     // https://github.com/Vectorized/solady/blob/21009ce09f02c0e20ce4750b63577e8c0cc7ced8/test/ERC4337.t.sol#L122
     function testExecute() public {
@@ -45,3 +47,6 @@ contract TestExecute is SmartWalletTestBase {
         assertEq(target.balance, 123);
     }
 }
+
+/// @dev Runs execute tests against EntryPoint v0.9.
+contract TestExecute is TestExecuteBase, UseEntryPointV09 {}

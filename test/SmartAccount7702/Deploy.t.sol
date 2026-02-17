@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
 /// @dev Simple contract deployed inside tests.
@@ -19,7 +20,8 @@ contract RevertingConstructor {
     }
 }
 
-contract TestDeploy is SmartWalletTestBase {
+/// @dev Abstract test logic for deploy()/deployDeterministic(). Concrete classes provide the EntryPoint version.
+abstract contract TestDeployBase is SmartWalletTestBase {
     // -----------------------------------------------------------------------
     //  deploy() — CREATE
     // -----------------------------------------------------------------------
@@ -189,5 +191,7 @@ contract TestDeploy is SmartWalletTestBase {
         // Verify the contract was deployed at the predicted address
         assertEq(SimpleStorage(predicted).value(), 55);
     }
-
 }
+
+/// @dev Runs deploy tests against EntryPoint v0.9.
+contract TestDeploy is TestDeployBase, UseEntryPointV09 {}

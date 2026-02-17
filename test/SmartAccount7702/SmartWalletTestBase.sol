@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {Test, console2, stdError} from "forge-std/Test.sol";
 
 import "../../src/SmartAccount7702.sol";
 
-contract SmartWalletTestBase is Test {
+/// @dev Abstract test base for SmartAccount7702 tests.
+///      Subclasses must provide the EntryPoint bytecode via `_deployEntryPoint()`.
+///      This allows running the same tests against different EntryPoint versions.
+abstract contract SmartWalletTestBase is Test {
     SmartAccount7702 public account;
     uint256 signerPrivateKey = 0xa11ce;
     address signer = vm.addr(signerPrivateKey);
@@ -19,10 +21,12 @@ contract SmartWalletTestBase is Test {
     uint256 userOpNonce;
     bytes userOpCalldata;
 
+    /// @dev Override to deploy the EntryPoint implementation at the canonical address.
+    function _deployEntryPoint() internal virtual;
+
     function setUp() public virtual {
-        // Deploy EntryPoint at canonical address
-        EntryPoint ep = new EntryPoint();
-        vm.etch(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108, address(ep).code);
+        // Deploy EntryPoint at canonical address (version determined by subclass)
+        _deployEntryPoint();
 
         // Simulate EIP-7702 delegation: deploy SmartAccount7702, then etch its runtime
         // bytecode (including immutables) onto the signer's EOA. This makes

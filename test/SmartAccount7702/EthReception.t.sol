@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
-contract TestEthReception is SmartWalletTestBase {
+contract TestEthReception is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Plain ETH transfer triggers `receive()`.
     function test_receiveEth_plainTransfer() public {
         vm.deal(address(this), 2 ether);

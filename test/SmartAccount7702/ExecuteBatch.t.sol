@@ -2,9 +2,11 @@
 pragma solidity ^0.8.33;
 
 import {MockTarget} from "../mocks/MockTarget.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
-contract TestExecuteBatch is SmartWalletTestBase {
+/// @dev Abstract test logic for executeBatch(). Concrete classes provide the EntryPoint version.
+abstract contract TestExecuteBatchBase is SmartWalletTestBase {
     function testExecuteBatch() public {
         vm.deal(address(account), 1 ether);
 
@@ -66,3 +68,6 @@ contract TestExecuteBatch is SmartWalletTestBase {
         account.executeBatch(calls);
     }
 }
+
+/// @dev Runs executeBatch tests against EntryPoint v0.9.
+contract TestExecuteBatch is TestExecuteBatchBase, UseEntryPointV09 {}

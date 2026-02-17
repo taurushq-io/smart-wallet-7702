@@ -3,6 +3,7 @@ pragma solidity ^0.8.33;
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
 /// @title TestFuzz
@@ -14,7 +15,7 @@ import "./SmartWalletTestBase.sol";
 ///      - isValidSignature (PersonalSign): valid signatures, wrong signers, garbage data
 ///      - execute: ETH transfers with fuzzed amounts
 ///      - supportsInterface: known vs unknown interface IDs
-contract TestFuzz is SmartWalletTestBase {
+contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     MockEntryPoint mockEp;
 
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
@@ -162,8 +163,8 @@ contract TestFuzz is SmartWalletTestBase {
         amount = bound(amount, 0, 100 ether);
         vm.assume(recipient != address(0));
         vm.assume(recipient != address(account));
-        // Exclude precompiles (1-9) and the EntryPoint to avoid side effects
-        vm.assume(uint160(recipient) > 9);
+        // Exclude precompiles and system addresses (Prague EVM has precompiles up to 0x0b+)
+        vm.assume(uint160(recipient) > 0xff);
         vm.assume(recipient != account.entryPoint());
         vm.assume(recipient.code.length == 0);
 

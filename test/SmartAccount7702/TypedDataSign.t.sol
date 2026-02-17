@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
 /// @title TestTypedDataSign
@@ -16,7 +17,7 @@ import "./SmartWalletTestBase.sol";
 ///
 /// Encoded signature format:
 ///   signature || APP_DOMAIN_SEPARATOR || contentsHash || contentsDescr || uint16(contentsDescr.length)
-contract TestTypedDataSign is SmartWalletTestBase {
+contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
     // -----------------------------------------------------------------------
     //  Application-level EIP-712 types (simulated dApp)
     // -----------------------------------------------------------------------

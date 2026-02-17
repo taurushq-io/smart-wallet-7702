@@ -356,21 +356,39 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 76 tests across 16 test suites.
+The project has 132 tests across 23 test suites.
+
+### Dual EntryPoint Testing
+
+All tests that route UserOperations through the real EntryPoint are run against **two versions**:
+
+- **EntryPoint v0.9.0** — the latest canonical release
+- **EntryPoint v0.8.0** — the previous stable release
+
+This ensures the smart account is compatible with both versions. Test logic is extracted into abstract contracts, and two concrete classes (V09, V08) inherit the same tests with different EntryPoint implementations via `UseEntryPointV09` / `UseEntryPointV08` mixins.
+
+```bash
+# Run only V08 tests
+forge test --match-path "test/SmartAccount7702/v08/*"
+
+# Run only V09 tests (default)
+forge test --match-path "test/SmartAccount7702/*.t.sol"
+```
 
 ### Unit Tests (`test/SmartAccount7702/`)
 
-| Test File | Coverage |
-|---|---|
-| `ValidateUserOp.t.sol` | Signature validation, wrong signer, non-EntryPoint caller |
-| `Execute.t.sol` | Single call execution, access control, revert bubbling |
-| `ExecuteBatch.t.sol` | Batch execution, empty batch, revert propagation |
-| `Deploy.t.sol` | CREATE/CREATE2 deployment, empty bytecode, constructor revert, salt collision, value forwarding, access control, EntryPoint routing |
-| `IsValidSignature.t.sol` | ERC-7739 PersonalSign path, wrong signer, invalid signature length |
-| `TypedDataSign.t.sol` | ERC-7739 TypedDataSign path (EIP-712 Permit), wrong signer, cross-account replay |
-| `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls |
-| `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute |
-| `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute |
+| Test File | Coverage | V08 variant |
+|---|---|---|
+| `ValidateUserOp.t.sol` | Signature validation, wrong signer, non-EntryPoint caller, prefund payment | Yes |
+| `Execute.t.sol` | Single call execution, access control, revert bubbling | Yes |
+| `ExecuteBatch.t.sol` | Batch execution, empty batch, revert propagation | Yes |
+| `Deploy.t.sol` | CREATE/CREATE2 deployment, empty bytecode, constructor revert, salt collision, value forwarding, access control, EntryPoint routing | Yes |
+| `IsValidSignature.t.sol` | ERC-7739 PersonalSign path, wrong signer, invalid signature length | — |
+| `TypedDataSign.t.sol` | ERC-7739 TypedDataSign path (EIP-712 Permit), wrong signer, cross-account replay | — |
+| `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls | — |
+| `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute | Yes |
+| `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute | Yes |
+| `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, execution, and supportsInterface | — |
 
 ### Walkthrough Tests (`test/walkthrough/`)
 
@@ -383,6 +401,30 @@ Step-by-step tests designed to be read as documentation. Each test logs every st
 | `WalkthroughDeploy` | Contract deployment via CREATE, CREATE2, and deploy-then-interact |
 
 These tests share setup and helpers via the abstract `WalkthroughBase` contract and use a `MockPaymaster` (accept-all) for the paymaster flow.
+
+### Fuzz Tests (`test/SmartAccount7702/Fuzz.t.sol`)
+
+12 property-based fuzz tests (256 runs each by default) covering the core signing and execution paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
+
+| Test | Property |
+|---|---|
+| `testFuzz_validateUserOp_validSignature` | Any `userOpHash` signed with the correct key always validates (returns 0) |
+| `testFuzz_validateUserOp_wrongSigner` | Any `userOpHash` signed with a random wrong key always fails (returns 1) |
+| `testFuzz_validateUserOp_garbageSignature` | Non-65-byte random data always fails signature validation |
+| `testFuzz_validateUserOp_prefund` | Fuzzed `missingAccountFunds` (1–100 ETH) is correctly transferred to the EntryPoint |
+| `testFuzz_validateUserOp_zeroPrefund` | Zero prefund leaves both balances unchanged regardless of account balance |
+| `testFuzz_isValidSignature_personalSign_valid` | Any hash signed via PersonalSign with correct key returns the ERC-1271 magic value |
+| `testFuzz_isValidSignature_personalSign_wrongSigner` | Any hash signed with a wrong key returns `0xffffffff` |
+| `testFuzz_isValidSignature_garbageSignature` | Non-65-byte garbage always returns `0xffffffff` |
+| `testFuzz_execute_ethTransfer` | Fuzzed ETH amounts transfer correctly to fuzzed recipients |
+| `testFuzz_execute_erc20Transfer` | Fuzzed ERC-20 amounts transfer correctly to fuzzed recipients |
+| `testFuzz_supportsInterface_unknownId` | Random unknown interface IDs always return `false` |
+
+To increase the number of runs:
+
+```bash
+forge test --match-contract TestFuzz --fuzz-runs 10000
+```
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 

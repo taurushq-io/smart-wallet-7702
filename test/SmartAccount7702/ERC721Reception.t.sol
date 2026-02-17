@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 import "../mocks/MockERC721.sol";
 
@@ -10,11 +11,12 @@ import "../mocks/MockERC721.sol";
 ///      Under EIP-7702 the EOA has code, so `safeTransferFrom` and `safeMint` invoke
 ///      `onERC721Received` on the wallet. The contract implements this callback to return
 ///      the magic value `0x150b7a02`, allowing all safe transfer paths to succeed.
-contract TestERC721Reception is SmartWalletTestBase {
+/// @dev Abstract test logic for ERC-721 reception. Concrete classes provide the EntryPoint version.
+abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
     MockERC721 nft;
     address alice = address(uint160(uint256(keccak256("alice"))));
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
         nft = new MockERC721();
     }
@@ -105,5 +107,12 @@ contract TestERC721Reception is SmartWalletTestBase {
         _sendUserOperation(_getUserOpWithSignature());
 
         assertEq(nft.ownerOf(1), alice);
+    }
+}
+
+/// @dev Runs ERC-721 reception tests against EntryPoint v0.9.
+contract TestERC721Reception is TestERC721ReceptionBase, UseEntryPointV09 {
+    function setUp() public override(TestERC721ReceptionBase, SmartWalletTestBase) {
+        TestERC721ReceptionBase.setUp();
     }
 }
