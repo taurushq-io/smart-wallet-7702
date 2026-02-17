@@ -140,6 +140,62 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         }
     }
 
+    /// @notice Deploys a contract using CREATE.
+    ///
+    /// @dev Can only be called by the EntryPoint or the account itself.
+    ///      The deployed contract's `msg.sender` (in its constructor) is `address(this)` — the EOA.
+    ///
+    /// @param value        The ETH value to send to the new contract's constructor.
+    /// @param creationCode The contract creation bytecode (bytecode + constructor args).
+    ///
+    /// @return deployed The address of the newly deployed contract.
+    function deploy(uint256 value, bytes calldata creationCode)
+        external
+        payable
+        virtual
+        onlyEntryPointOrSelf
+        returns (address deployed)
+    {
+        assembly ("memory-safe") {
+            let m := mload(0x40)
+            calldatacopy(m, creationCode.offset, creationCode.length)
+            deployed := create(value, m, creationCode.length)
+            if iszero(deployed) {
+                returndatacopy(m, 0x00, returndatasize())
+                revert(m, returndatasize())
+            }
+        }
+    }
+
+    /// @notice Deploys a contract using CREATE2 (deterministic address).
+    ///
+    /// @dev Can only be called by the EntryPoint or the account itself.
+    ///      The deployed address is determined by `(address(this), salt, keccak256(creationCode))`.
+    ///      Since `address(this)` is the EOA under EIP-7702, the deployer is the EOA itself.
+    ///
+    /// @param value        The ETH value to send to the new contract's constructor.
+    /// @param creationCode The contract creation bytecode (bytecode + constructor args).
+    /// @param salt         The salt for CREATE2 address derivation.
+    ///
+    /// @return deployed The address of the newly deployed contract.
+    function deployDeterministic(uint256 value, bytes calldata creationCode, bytes32 salt)
+        external
+        payable
+        virtual
+        onlyEntryPointOrSelf
+        returns (address deployed)
+    {
+        assembly ("memory-safe") {
+            let m := mload(0x40)
+            calldatacopy(m, creationCode.offset, creationCode.length)
+            deployed := create2(value, m, creationCode.length, salt)
+            if iszero(deployed) {
+                returndatacopy(m, 0x00, returndatasize())
+                revert(m, returndatasize())
+            }
+        }
+    }
+
     /// @notice Returns the address of the trusted EntryPoint.
     function entryPoint() public view virtual returns (address) {
         return _entryPoint;
