@@ -235,12 +235,43 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
 
     /// @notice ERC-165 interface detection.
     ///
-    /// @dev Supports IAccount (ERC-4337), ERC-1271, and ERC-165 itself.
+    /// @dev Supports IAccount (ERC-4337), ERC-1271, ERC-7739, token receiver interfaces,
+    ///      and ERC-165 itself.
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
         return interfaceId == type(IAccount).interfaceId // 0x3a871cdd
             || interfaceId == bytes4(0x1626ba7e) // ERC-1271
             || interfaceId == bytes4(0x77390001) // ERC-7739
+            || interfaceId == bytes4(0x150b7a02) // IERC721Receiver
+            || interfaceId == bytes4(0x4e2312e0) // IERC1155Receiver
             || interfaceId == bytes4(0x01ffc9a7); // ERC-165
+    }
+
+    // ─── Token Receiver Callbacks ────────────────────────────────────
+    //
+    // Under EIP-7702, the EOA has code, so ERC-721 `safeTransferFrom` and ERC-1155
+    // transfers invoke receiver callbacks. Without these, the ABI decoder fails on the
+    // empty `fallback()` return data and the transfer reverts.
+    //
+    // ERC-1155 has NO non-safe transfer function, so without `onERC1155Received` the
+    // wallet cannot receive ANY ERC-1155 tokens.
+
+    /// @dev Accepts ERC-721 safe transfers. Returns the `onERC721Received` magic value.
+    function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
+        return 0x150b7a02;
+    }
+
+    /// @dev Accepts ERC-1155 safe transfers. Returns the `onERC1155Received` magic value.
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+        return 0xf23a6e61;
+    }
+
+    /// @dev Accepts ERC-1155 safe batch transfers. Returns the `onERC1155BatchReceived` magic value.
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata)
+        external
+        pure
+        returns (bytes4)
+    {
+        return 0xbc197c81;
     }
 
     /// @dev Executes a call and bubbles up revert data on failure.

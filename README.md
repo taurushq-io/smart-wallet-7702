@@ -14,6 +14,7 @@ The contract supports:
 - Contract deployment via CREATE and CREATE2 (`deploy`, `deployDeterministic`)
 - ERC-1271 signature validation with ERC-7739 anti-replay protection
 - Per-EOA EntryPoint configuration via `initialize()`
+- ERC-721 and ERC-1155 token reception (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`)
 - ETH receiving (`receive`, `fallback`)
 
 ## Architecture
@@ -49,27 +50,36 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 ### Contract Description Table
 
-|     Contract      |       Type       |          Bases           |                |               |
-| :---------------: | :--------------: | :----------------------: | :------------: | :-----------: |
-|         └         | **Function Name** |      **Visibility**      | **Mutability** | **Modifiers** |
-|                   |                  |                          |                |               |
-| **SmartAccount7702** |  Implementation  | ERC7739, SignerEIP7702, IAccount, Initializable |                |               |
-|         └         |   initialize     |       External ❗️        |       🛑        | initializer  |
-|         └         |  validateUserOp  |       External ❗️        |       🛑        | onlyEntryPoint |
-|         └         |     execute      |       External ❗️        |       💵        | onlyEntryPointOrSelf |
-|         └         |   executeBatch   |       External ❗️        |       💵        | onlyEntryPointOrSelf |
-|         └         |      deploy      |       External ❗️        |       💵        | onlyEntryPointOrSelf |
-|         └         | deployDeterministic |    External ❗️        |       💵        | onlyEntryPointOrSelf |
-|         └         |    entryPoint    |        Public ❗️         |                |      NO❗️      |
-|         └         | supportsInterface |       External ❗️       |                |      NO❗️      |
-|         └         |      _call       |       Internal 🔒        |       🛑        |               |
+| Function | Visibility | Mutability | Modifiers |
+|---|---|---|---|
+| `initialize` | External | State-changing | `initializer` |
+| `validateUserOp` | External | State-changing | `onlyEntryPoint` |
+| `execute` | External | Payable | `onlyEntryPointOrSelf` |
+| `executeBatch` | External | Payable | `onlyEntryPointOrSelf` |
+| `deploy` | External | Payable | `onlyEntryPointOrSelf` |
+| `deployDeterministic` | External | Payable | `onlyEntryPointOrSelf` |
+| `entryPoint` | Public | View | — |
+| `supportsInterface` | Public | View | — |
+| `onERC721Received` | External | Pure | — |
+| `onERC1155Received` | External | Pure | — |
+| `onERC1155BatchReceived` | External | Pure | — |
+| `_call` | Internal | State-changing | — |
 
-#### Legend
+### Token Receiver Callbacks
 
-| Symbol | Meaning                   |
-| :----: | ------------------------- |
-|   🛑    | Function can modify state |
-|   💵    | Function is payable       |
+Under EIP-7702, the EOA has code (`address.code.length > 0`), which means ERC-721 `safeTransferFrom` and all ERC-1155 transfers invoke receiver callbacks on the wallet. Without proper callbacks, the ABI decoder fails on the empty `fallback()` return data and the transfer reverts.
+
+This is especially critical for **ERC-1155**, which has **no** non-safe transfer function — without `onERC1155Received`, the wallet cannot receive any ERC-1155 tokens at all.
+
+The contract implements all three receiver callbacks:
+
+| Callback | Returns | Standard |
+|---|---|---|
+| `onERC721Received` | `0x150b7a02` | ERC-721 |
+| `onERC1155Received` | `0xf23a6e61` | ERC-1155 |
+| `onERC1155BatchReceived` | `0xbc197c81` | ERC-1155 |
+
+`supportsInterface` advertises `IERC721Receiver` (`0x150b7a02`) and `IERC1155Receiver` (`0x4e2312e0`).
 
 ### Custom Errors
 
@@ -149,27 +159,13 @@ bytes memory callData = abi.encodeCall(
 
 ## Threat Model
 
-This section documents the attack vectors analyzed against SmartAccount7702, how each is mitigated, and the one critical vulnerability that was found and fixed. All attacks are covered by tests in `test/AttackTests.t.sol`.
+This section documents the attack vectors analyzed against SmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol`.
 
-### Vulnerability Found and Fixed: Front-Running `initialize()`
+### Front-Running `initialize()`
 
-**Severity:** Critical
+Without access control on `initialize()`, an attacker monitoring the mempool could front-run the owner after EIP-7702 delegation and set a malicious contract as the EntryPoint. The attacker's contract would then pass `onlyEntryPointOrSelf` and drain the account.
 
-**Description:** The original `initialize()` function had no access control — anyone could call it. After an EOA delegates its code via EIP-7702, there is a window before `initialize()` is called. An attacker monitoring the mempool could front-run the owner's `initialize()` call and set a malicious contract as the EntryPoint.
-
-**Attack flow (before fix):**
-
-```
-1. Alice delegates her EOA to SmartAccount7702 via EIP-7702
-2. Attacker sees the delegation in the mempool
-3. Attacker calls alice.initialize(attackerContract) with higher gas
-4. attackerContract is now the trusted "EntryPoint"
-5. attackerContract calls alice.execute(usdc, 0, transfer(attacker, balance))
-6. onlyEntryPointOrSelf passes because msg.sender == entryPoint()
-7. Alice's tokens are drained
-```
-
-**Fix applied:** `initialize()` now requires `msg.sender == address(this)`:
+**Mitigation:** `initialize()` requires `msg.sender == address(this)` — only the EOA itself can call it:
 
 ```solidity
 function initialize(address entryPoint_) external initializer {
@@ -178,7 +174,7 @@ function initialize(address entryPoint_) external initializer {
 }
 ```
 
-Only the EOA itself can call `initialize()`. In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(this)` and `data = abi.encodeCall(initialize, (entryPoint))`. This makes delegation and initialization atomic in a single transaction.
+In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(this)` and `data = abi.encodeCall(initialize, (entryPoint))`. This makes delegation and initialization atomic in a single transaction.
 
 ### Attack: Unauthorized Execution
 
@@ -362,7 +358,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 60 tests across 13 test suites.
+The project has 76 tests across 16 test suites.
 
 ### Unit Tests (`test/SmartAccount7702/`)
 
@@ -375,6 +371,8 @@ The project has 60 tests across 13 test suites.
 | `IsValidSignature.t.sol` | ERC-7739 PersonalSign path, wrong signer, invalid signature length |
 | `TypedDataSign.t.sol` | ERC-7739 TypedDataSign path (EIP-712 Permit), wrong signer, cross-account replay |
 | `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls |
+| `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute |
+| `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute |
 
 ### Walkthrough Tests (`test/walkthrough/`)
 
