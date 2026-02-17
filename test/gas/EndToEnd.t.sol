@@ -29,9 +29,10 @@ contract EndToEndTest is SmartWalletTestBase {
         // Simulate EIP-7702 delegation
         signerPrivateKey = 0xa11ce;
         signer = vm.addr(signerPrivateKey);
-        SmartAccount7702 impl = new SmartAccount7702(address(entryPoint));
+        SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(signer, address(impl).code);
         account = SmartAccount7702(payable(signer));
+        account.initialize(address(entryPoint));
 
         // Fund wallets with ETH
         vm.deal(address(account), 100 ether);

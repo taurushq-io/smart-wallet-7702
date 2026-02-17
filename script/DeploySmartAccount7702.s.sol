@@ -12,15 +12,13 @@ contract DeploySmartAccount7702Script is Script {
     function run() public {
         console2.log("Deploying on chain ID", block.chainid);
 
-        address entryPoint = vm.envAddress("ENTRY_POINT");
-        console2.log("EntryPoint", entryPoint);
-
         bytes32 salt = 0x3771220e68256b8d5aa359fe953bf594dad1a5473239d1251256f0e5e7473b16;
 
         vm.startBroadcast();
-        SmartAccount7702 implementation = new SmartAccount7702{salt: salt}(entryPoint);
+        SmartAccount7702 implementation = new SmartAccount7702{salt: salt}();
         vm.stopBroadcast();
 
         console2.log("implementation", address(implementation));
+        console2.log("Each delegating EOA must call initialize(entryPoint) after EIP-7702 delegation");
     }
 }

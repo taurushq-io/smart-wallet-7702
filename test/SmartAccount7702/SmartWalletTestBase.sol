@@ -24,13 +24,14 @@ contract SmartWalletTestBase is Test {
         EntryPoint ep = new EntryPoint();
         vm.etch(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108, address(ep).code);
 
-        // Simulate EIP-7702 delegation: deploy SmartAccount7702 with the EntryPoint address,
-        // then etch its runtime bytecode (including immutables) onto the signer's EOA.
-        // This makes address(this) == signer when the contract code runs,
-        // which is exactly what happens with a real 7702 authorization tuple.
-        SmartAccount7702 impl = new SmartAccount7702(address(entryPoint));
+        // Simulate EIP-7702 delegation: deploy SmartAccount7702, then etch its runtime
+        // bytecode (including immutables) onto the signer's EOA. This makes
+        // address(this) == signer when the contract code runs, which is exactly what
+        // happens with a real 7702 authorization tuple.
+        SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(signer, address(impl).code);
         account = SmartAccount7702(payable(signer));
+        account.initialize(address(entryPoint));
     }
 
     function _sendUserOperation(PackedUserOperation memory userOp) internal {

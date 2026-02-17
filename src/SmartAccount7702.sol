@@ -6,6 +6,7 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
 import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /// @title SmartAccount7702
 ///
@@ -25,7 +26,7 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      This contract provides `receive()` and `fallback()` functions. This is essential:
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
-contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
+contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @notice Represents a call to make.
     struct Call {
         /// @dev The address to call.
@@ -39,16 +40,25 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized();
 
-    /// @notice The immutable EntryPoint address this account trusts for UserOp validation.
-    /// @dev Set at construction time, allowing different deployments to target different
-    ///      EntryPoint versions (e.g. v0.8 for Circle USDC Paymaster compatibility, v0.9, etc.).
-    ///      Since immutables are embedded in bytecode, all EOAs delegating to this implementation
-    ///      share the same EntryPoint.
-    address private immutable _entryPoint;
+    /// @notice The EntryPoint address this account trusts for UserOp validation.
+    /// @dev Set via `initialize()`, stored in the delegating EOA's storage.
+    ///      Each EOA can configure its own EntryPoint after delegating to this implementation.
+    address private _entryPoint;
 
-    /// @notice Creates the SmartAccount7702 implementation with a specific EntryPoint.
+    /// @notice Deploys the implementation and disables initialization on it.
+    /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
+    ///      delegating EOAs and work correctly under EIP-7702.
+    ///      `_disableInitializers()` prevents `initialize()` from being called on the implementation
+    ///      contract itself. Each delegating EOA has clean storage and can call `initialize()` once.
+    constructor() EIP712("TSmart Account 7702", "1") {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the account with the trusted EntryPoint address.
+    /// @dev Must be called once after EIP-7702 delegation. The `initializer` modifier ensures
+    ///      this can only be called once per storage context (i.e., once per delegating EOA).
     /// @param entryPoint_ The EntryPoint address this account will trust.
-    constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
+    function initialize(address entryPoint_) external initializer {
         _entryPoint = entryPoint_;
     }
 
