@@ -26,20 +26,10 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
 contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
-    /// @notice Represents a call to make.
-    struct Call {
-        /// @dev The address to call.
-        address target;
-        /// @dev The value to send when making the call.
-        uint256 value;
-        /// @dev The data of the call.
-        bytes data;
-    }
-
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized();
 
-    /// @notice Thrown when `deploy` or `deployDeterministic` is called with empty creation code.
+    /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
     /// @notice Emitted when the account is initialized with an EntryPoint.
@@ -47,7 +37,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     ///      `Initializable.Initialized(uint64 version)` which is also emitted during `initialize()`.
     event EntryPointSet(address indexed entryPoint);
 
-    /// @notice Emitted when a contract is deployed via CREATE or CREATE2.
+    /// @notice Emitted when a contract is deployed via CREATE2.
     event ContractDeployed(address indexed deployed);
 
     /// @custom:storage-location erc7201:smartaccount7702.entrypoint
@@ -172,50 +162,6 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         onlyEntryPointOrSelf
     {
         _call(target, value, data);
-    }
-
-    /// @notice Executes a batch of calls from this account.
-    ///
-    /// @dev Can only be called by the EntryPoint or the account itself (direct EOA transaction).
-    ///
-    /// @param calls The list of `Call`s to execute.
-    function executeBatch(Call[] calldata calls) external payable virtual onlyEntryPointOrSelf {
-        for (uint256 i; i < calls.length; i++) {
-            _call(calls[i].target, calls[i].value, calls[i].data);
-        }
-    }
-
-    /// @notice Deploys a contract using CREATE.
-    ///
-    /// @dev Can only be called by the EntryPoint or the account itself.
-    ///      The deployed contract's `msg.sender` (in its constructor) is `address(this)` — the EOA.
-    ///
-    /// @param value        The ETH value to send to the new contract's constructor.
-    /// @param creationCode The contract creation bytecode (bytecode + constructor args).
-    ///
-    /// @return deployed The address of the newly deployed contract.
-    function deploy(uint256 value, bytes calldata creationCode)
-        external
-        payable
-        virtual
-        onlyEntryPointOrSelf
-        returns (address deployed)
-    {
-        if (creationCode.length == 0) revert EmptyBytecode();
-        // Memory-safe: writes beyond the free memory pointer without advancing it.
-        // The only Solidity after the assembly is `emit ContractDeployed(deployed)`,
-        // which uses only indexed parameters (LOG2 with zero data bytes) and does not
-        // allocate memory. `deployed` is on the stack, not in the overwritten area at `m`.
-        assembly ("memory-safe") {
-            let m := mload(0x40)
-            calldatacopy(m, creationCode.offset, creationCode.length)
-            deployed := create(value, m, creationCode.length)
-            if iszero(deployed) {
-                returndatacopy(m, 0x00, returndatasize())
-                revert(m, returndatasize())
-            }
-        }
-        emit ContractDeployed(deployed);
     }
 
     /// @notice Deploys a contract using CREATE2 (deterministic address).

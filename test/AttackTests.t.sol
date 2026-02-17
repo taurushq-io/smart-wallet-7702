@@ -38,8 +38,8 @@ contract MaliciousEntryPoint {
 /// @dev Attack vectors tested:
 ///
 ///      1. Front-running initialize() with a malicious EntryPoint
-///      2. Direct unauthorized execute() / executeBatch() / deploy()
-///      3. ETH theft via execute()
+    ///      2. Direct unauthorized execute() / deployDeterministic()
+    ///      3. ETH theft via execute()
 ///      4. ERC-20 theft via execute()
 ///      5. Re-initialization (changing EntryPoint after setup)
 ///      6. UserOp with wrong signer
@@ -126,7 +126,7 @@ abstract contract AttackTestsBase is Test {
     }
 
     // =======================================================================
-    //  ATTACK 2: Unauthorized execute / executeBatch / deploy
+    //  ATTACK 2: Unauthorized execute / deployDeterministic
     //
     //  A random address tries to call execution functions directly.
     //  Should revert with Unauthorized.
@@ -138,25 +138,6 @@ abstract contract AttackTestsBase is Test {
         vm.prank(attacker);
         vm.expectRevert(SmartAccount7702.Unauthorized.selector);
         smartAccount.execute(attacker, 1 ether, "");
-    }
-
-    function test_attack_unauthorizedExecuteBatch_reverts() public {
-        _setupInitialized();
-
-        SmartAccount7702.Call[] memory calls = new SmartAccount7702.Call[](1);
-        calls[0] = SmartAccount7702.Call({target: attacker, value: 1 ether, data: ""});
-
-        vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
-        smartAccount.executeBatch(calls);
-    }
-
-    function test_attack_unauthorizedDeploy_reverts() public {
-        _setupInitialized();
-
-        vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
-        smartAccount.deploy(0, hex"60006000");
     }
 
     function test_attack_unauthorizedDeployDeterministic_reverts() public {

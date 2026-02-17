@@ -241,35 +241,6 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     }
 
     // =====================================================================
-    //  executeBatch — fuzzed call count and values
-    // =====================================================================
-
-    /// @dev For a fuzzed number of calls (1-8) with independently fuzzed ETH values,
-    ///      executeBatch should distribute the correct value to each target.
-    ///      Using a fixed-size array gives the fuzzer independent shrinking per element.
-    function testFuzz_executeBatch_multipleValues(uint8 callCount, uint256[8] memory values) public {
-        callCount = uint8(bound(callCount, 1, 8));
-        uint256 totalValue;
-        SmartAccount7702.Call[] memory calls = new SmartAccount7702.Call[](callCount);
-
-        for (uint256 i; i < callCount; i++) {
-            uint256 value = bound(values[i], 0, 1 ether);
-            calls[i].target = address(uint160(0x1000 + i));
-            calls[i].value = value;
-            calls[i].data = "";
-            totalValue += value;
-        }
-
-        vm.deal(address(account), totalValue);
-        vm.prank(address(account));
-        account.executeBatch(calls);
-
-        for (uint256 i; i < callCount; i++) {
-            assertEq(calls[i].target.balance, calls[i].value, "each target should receive its value");
-        }
-    }
-
-    // =====================================================================
     //  isValidSignature — TypedDataSign path
     // =====================================================================
 
@@ -333,7 +304,7 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     }
 
     // =====================================================================
-    //  deploy / deployDeterministic
+    //  deployDeterministic
     // =====================================================================
 
     /// @dev For any fuzzed salt, deployDeterministic should place code at the predicted address.

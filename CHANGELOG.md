@@ -1,12 +1,24 @@
 # Changelog
 
+## [0.2.0] — 2026-02-17
+
+### Removed
+
+- **`executeBatch`**: Removed batch execution function and the `Call` struct. Use `execute` for single calls via UserOps or direct EOA transactions.
+- **`deploy`** (CREATE): Removed non-deterministic contract deployment. Use `deployDeterministic` (CREATE2) instead — addresses are pre-computable and consistent across chains.
+
+### Updated
+
+- Tests: removed ExecuteBatch and CREATE test suites, updated walkthrough and fuzz tests
+- Documentation: README, CLAUDE.md, ACCOUNT_EXECUTE.md, create-contract.md, audit feedback files
+
 ## [0.1.0] — 2026-02-17
 
 Initial release of SmartAccount7702 — a minimal ERC-4337 smart account for EIP-7702 delegation.
 
 ### Core Contract
 
-- **`SmartAccount7702.sol`** — single-file ERC-4337 account (~336 lines)
+- **`SmartAccount7702.sol`** — single-file ERC-4337 account
 - EIP-7702 delegation: `address(this)` is the EOA, single-owner by design
 - `validateUserOp` with ECDSA recovery against `address(this)`
 - `execute` / `executeBatch` / `deploy` / `deployDeterministic`
@@ -25,10 +37,9 @@ Initial release of SmartAccount7702 — a minimal ERC-4337 smart account for EIP
 
 ### Test Suite
 
-- **159 tests** across 26 suites
 - Dual EntryPoint testing (v0.9.0 + v0.8.0)
-- 15 fuzz tests, 28 adversarial tests, 3 walkthroughs, gas profiling
-- Deploy script verification (8 tests)
+- Fuzz tests, adversarial tests, walkthroughs, gas profiling
+- Deploy script verification
 - Zero compiler warnings, no hardcoded keys or hashes in tests
 
 ### Static Analysis

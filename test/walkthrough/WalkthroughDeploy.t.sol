@@ -27,120 +27,20 @@ contract WalkthroughStorage {
 
 /// @title WalkthroughDeployTest
 ///
-/// @notice Walkthrough demonstrating contract deployment from SmartAccount7702 via UserOperations.
-///         Shows both CREATE and CREATE2 deployments with a paymaster covering gas.
+/// @notice Walkthrough demonstrating deterministic contract deployment from SmartAccount7702 via UserOperations.
+///         Shows CREATE2 deployments with a paymaster covering gas.
 ///
-/// @dev The wallet can deploy contracts because it has native `deploy()` and `deployDeterministic()`
-///      functions that execute CREATE and CREATE2 opcodes. Since `address(this)` is the EOA under
-///      EIP-7702, the EOA is recorded as the deployer (`msg.sender` in the child constructor).
+/// @dev The wallet can deploy contracts because it has a native `deployDeterministic()` function that
+///      executes the CREATE2 opcode. Since `address(this)` is the EOA under EIP-7702, the EOA is
+///      recorded as the deployer (`msg.sender` in the child constructor).
 ///
 ///      This is useful for:
 ///        - Deploying token contracts owned by the wallet
 ///        - Deploying proxy contracts with deterministic addresses
 ///        - Factory patterns where the wallet acts as the deployer
+///        - Cross-chain deployments at the same address
 contract WalkthroughDeployTest is WalkthroughBase {
     MockPaymaster paymaster;
-
-    function test_walkthrough_deployContract_CREATE() public {
-        // -------------------------------------------------------------------
-        // STEP 1-3: Deploy infrastructure, delegate, initialize
-        // -------------------------------------------------------------------
-        _deployInfrastructure();
-        _setupPaymaster();
-        _delegateVia7702();
-        _initializeAccount();
-
-        // -------------------------------------------------------------------
-        // STEP 4: Build the UserOperation — deploy WalkthroughStorage via CREATE
-        //
-        // To deploy a contract, we encode a call to `deploy(value, creationCode)`.
-        // The creationCode is the contract bytecode + ABI-encoded constructor args.
-        //
-        // The wallet executes CREATE internally, so:
-        //   - msg.sender in the constructor = address(this) = Alice's EOA
-        //   - The deployed address is nonce-dependent (standard CREATE behavior)
-        // -------------------------------------------------------------------
-        console2.log("");
-        console2.log("--- STEP 4: Build UserOp (CREATE deployment) ---");
-
-        uint256 initialValue = 42;
-
-        // Get the creation bytecode: contract bytecode + constructor args
-        // type(WalkthroughStorage).creationCode gives the bytecode
-        // We ABI-encode the constructor argument and append it
-        bytes memory creationCode = abi.encodePacked(
-            type(WalkthroughStorage).creationCode,
-            abi.encode(initialValue) // constructor(uint256 initialValue)
-        );
-
-        console2.log("Creation code length:", creationCode.length);
-        console2.log("Constructor arg (initialValue):", initialValue);
-
-        // Encode the UserOp callData: smartAccount.deploy(0, creationCode)
-        // - value = 0 (no ETH sent to the new contract)
-        // - creationCode = WalkthroughStorage bytecode + constructor args
-        bytes memory deployCall = abi.encodeCall(
-            SmartAccount7702.deploy,
-            (0, creationCode)
-        );
-
-        PackedUserOperation memory userOp = _buildPaymasterUserOp(deployCall);
-
-        console2.log("UserOp built:");
-        console2.log("  sender:", userOp.sender);
-        console2.log("  action: deploy(0, creationCode)");
-
-        // -------------------------------------------------------------------
-        // STEP 5: Sign and submit
-        // -------------------------------------------------------------------
-        console2.log("");
-        console2.log("--- STEP 5: Sign UserOperation ---");
-        userOp.signature = _signUserOp(userOp);
-
-        console2.log("");
-        console2.log("--- STEP 6: Submit to EntryPoint ---");
-
-        uint256 paymasterDepositBefore = paymaster.getDeposit();
-        _submitUserOp(userOp);
-
-        // -------------------------------------------------------------------
-        // STEP 7: Verify the deployment
-        //
-        // We can predict the CREATE address: it depends on (deployer, nonce).
-        // The deployer is Alice's EOA. The nonce is the EVM account nonce
-        // (not the EntryPoint nonce — those are separate).
-        //
-        // After the CREATE, the nonce has been incremented, so we compute
-        // the address using (currentNonce - 1).
-        // -------------------------------------------------------------------
-        console2.log("");
-        console2.log("--- STEP 7: Verify deployment ---");
-
-        // After CREATE, Alice's EVM nonce was incremented.
-        // The CREATE used nonce = (currentNonce - 1).
-        uint64 aliceNonce = vm.getNonce(alice);
-        address expectedAddr = computeCreateAddress(alice, aliceNonce - 1);
-
-        // Verify the contract was deployed
-        assertTrue(expectedAddr.code.length > 0, "Contract should be deployed");
-        console2.log("Contract deployed at:", expectedAddr);
-        console2.log("Contract code size:", expectedAddr.code.length);
-
-        // Verify constructor ran correctly
-        WalkthroughStorage deployed = WalkthroughStorage(expectedAddr);
-        assertEq(deployed.deployer(), alice, "Deployer should be Alice's EOA");
-        assertEq(deployed.value(), initialValue, "Initial value should be 42");
-        console2.log("deployer():", deployed.deployer(), "(= Alice)");
-        console2.log("value():", deployed.value());
-
-        // Verify paymaster paid gas
-        uint256 gasSpent = paymasterDepositBefore - paymaster.getDeposit();
-        assertGt(gasSpent, 0, "Paymaster should have paid gas");
-        console2.log("Paymaster gas cost:", gasSpent, "wei");
-
-        console2.log("");
-        console2.log("=== CREATE deployment walkthrough complete ===");
-    }
 
     function test_walkthrough_deployContract_CREATE2() public {
         // -------------------------------------------------------------------
@@ -228,31 +128,33 @@ contract WalkthroughDeployTest is WalkthroughBase {
         // Full flow: deploy a contract, then interact with it — all via UserOps
         //
         // This shows how a wallet can deploy a contract AND call it in
-        // separate UserOperations. In production, you could also batch both
-        // actions into a single UserOp using executeBatch.
+        // separate UserOperations.
         // -------------------------------------------------------------------
         _deployInfrastructure();
         _setupPaymaster();
         _delegateVia7702();
         _initializeAccount();
 
-        // --- UserOp 1: Deploy WalkthroughStorage ---
+        // --- UserOp 1: Deploy WalkthroughStorage via CREATE2 ---
         console2.log("");
-        console2.log("--- UserOp 1: Deploy contract ---");
+        console2.log("--- UserOp 1: Deploy contract (CREATE2) ---");
 
         uint256 initialValue = 1;
+        bytes32 salt = bytes32(uint256(0xcafe));
         bytes memory creationCode = abi.encodePacked(
             type(WalkthroughStorage).creationCode,
             abi.encode(initialValue)
         );
 
-        bytes memory deployCall = abi.encodeCall(SmartAccount7702.deploy, (0, creationCode));
+        // Pre-compute the deterministic address
+        address predicted = computeCreate2Address(salt, keccak256(creationCode), alice);
+
+        bytes memory deployCall = abi.encodeCall(SmartAccount7702.deployDeterministic, (0, creationCode, salt));
         PackedUserOperation memory userOp1 = _buildPaymasterUserOp(deployCall);
         userOp1.signature = _signUserOp(userOp1);
         _submitUserOp(userOp1);
 
-        uint64 nonceAfterDeploy = vm.getNonce(alice);
-        address deployed = computeCreateAddress(alice, nonceAfterDeploy - 1);
+        address deployed = predicted;
         assertEq(WalkthroughStorage(deployed).value(), 1, "Initial value should be 1");
         console2.log("Deployed at:", deployed, "with value:", WalkthroughStorage(deployed).value());
 

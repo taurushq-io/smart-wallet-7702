@@ -8,8 +8,8 @@ With EIP-7702, an EOA delegates its execution logic to this contract. `address(t
 
 The contract supports:
 - ERC-4337 UserOperation validation (signature recovery against `address(this)`)
-- Single and batch execution (`execute`, `executeBatch`)
-- Contract deployment via CREATE and CREATE2 (`deploy`, `deployDeterministic`)
+- Single-call execution (`execute`)
+- Deterministic contract deployment via CREATE2 (`deployDeterministic`)
 - ERC-1271 signature validation with ERC-7739 anti-replay protection
 - Per-EOA EntryPoint configuration via `initialize()`
 - ERC-721 and ERC-1155 token reception (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`)
@@ -41,8 +41,8 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 |---|---|
 | `initialize` | `initializer` (once per EOA) |
 | `validateUserOp` | `onlyEntryPoint` |
-| `execute` / `executeBatch` | `onlyEntryPointOrSelf` |
-| `deploy` / `deployDeterministic` | `onlyEntryPointOrSelf` |
+| `execute` | `onlyEntryPointOrSelf` |
+| `deployDeterministic` | `onlyEntryPointOrSelf` |
 
 `onlyEntryPointOrSelf` allows both the EntryPoint (for UserOp execution) and the EOA itself (for direct transactions, since `msg.sender == address(this)` with 7702 delegation).
 
@@ -53,8 +53,6 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 | `initialize` | External | State-changing | `initializer` |
 | `validateUserOp` | External | State-changing | `onlyEntryPoint` |
 | `execute` | External | Payable | `onlyEntryPointOrSelf` |
-| `executeBatch` | External | Payable | `onlyEntryPointOrSelf` |
-| `deploy` | External | Payable | `onlyEntryPointOrSelf` |
 | `deployDeterministic` | External | Payable | `onlyEntryPointOrSelf` |
 | `entryPoint` | Public | View | — |
 | `supportsInterface` | Public | View | — |
@@ -84,14 +82,14 @@ The contract implements all three receiver callbacks:
 | Error | Description |
 |---|---|
 | `Unauthorized()` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
-| `EmptyBytecode()` | `deploy()` or `deployDeterministic()` called with zero-length creation code |
+| `EmptyBytecode()` | `deployDeterministic()` called with zero-length creation code |
 
 ### Events
 
 | Event | Emitted by |
 |---|---|
 | `EntryPointSet(address indexed entryPoint)` | `initialize()` — logs the EntryPoint address set for this EOA |
-| `ContractDeployed(address indexed deployed)` | `deploy()`, `deployDeterministic()` — logs the address of each newly deployed contract |
+| `ContractDeployed(address indexed deployed)` | `deployDeterministic()` — logs the address of the newly deployed contract |
 
 ## Initialization Model
 
@@ -114,42 +112,31 @@ Each delegating EOA has its own storage, so `initialize()` can be called once pe
 
 The `entryPoint` address is stored in [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) namespaced storage (slot `0x38a1...7a00`, derived from `"smartaccount7702.entrypoint"`). This prevents slot collisions if an EOA previously delegated to a different implementation that wrote to low slots.
 
-## Contract Deployment (CREATE / CREATE2)
+## Contract Deployment (CREATE2)
 
-The wallet can deploy contracts directly via ERC-4337 UserOperations. This is useful for deploying token contracts, proxies, or factory patterns where the wallet acts as the deployer.
+The wallet can deploy contracts deterministically via ERC-4337 UserOperations using the CREATE2 opcode. This is useful for deploying token contracts, proxies, or factory patterns where the wallet acts as the deployer.
 
 ### How it works
 
 ```
-UserOp.callData = abi.encodeCall(SmartAccount7702.deploy, (value, creationCode))
+UserOp.callData = abi.encodeCall(SmartAccount7702.deployDeterministic, (value, creationCode, salt))
 
-EntryPoint → validateUserOp() → deploy() → CREATE opcode → new contract
+EntryPoint → validateUserOp() → deployDeterministic() → CREATE2 opcode → new contract
 ```
 
-Under EIP-7702, the deployer is `address(this)` = the EOA. So `msg.sender` in the child contract's constructor is the EOA address.
+Under EIP-7702, the deployer is `address(this)` = the EOA. So `msg.sender` in the child contract's constructor is the EOA address. The deployed address is deterministic: `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))`.
 
-### CREATE vs CREATE2
+### Why CREATE2 only
 
-| Aspect | `deploy()` (CREATE) | `deployDeterministic()` (CREATE2) |
-|---|---|---|
-| Address formula | `keccak256(rlp([deployer, nonce]))` | `keccak256(0xff ++ deployer ++ salt ++ keccak256(creationCode))` |
-| Deterministic | No (depends on EVM nonce) | Yes (no nonce dependency) |
-| Pre-computable | Only with exact nonce knowledge | Always (deployer + salt + bytecode) |
-| Cross-chain same address | Not guaranteed | Guaranteed |
-
-**Important:** The ERC-4337 EntryPoint nonce (UserOp replay protection) and the EVM account nonce (used by CREATE) are completely independent systems. CREATE2 is recommended when the deployed address must be known in advance, as it avoids nonce tracking entirely.
+CREATE2 addresses are fully deterministic — they depend only on the deployer address, salt, and bytecode. This makes them pre-computable and consistent across chains. CREATE addresses depend on the EVM account nonce, which is fragile and hard to track alongside the separate ERC-4337 EntryPoint nonce.
 
 ### Usage Example
 
 ```solidity
-// Deploy via CREATE
 bytes memory creationCode = abi.encodePacked(
     type(MyContract).creationCode,
     abi.encode(constructorArg)
 );
-bytes memory callData = abi.encodeCall(SmartAccount7702.deploy, (0, creationCode));
-
-// Deploy via CREATE2 (deterministic address)
 bytes32 salt = bytes32(uint256(0x1234));
 bytes memory callData = abi.encodeCall(
     SmartAccount7702.deployDeterministic,
@@ -181,8 +168,6 @@ In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(thi
 | Attack | Mitigation | Test |
 |---|---|---|
 | Random address calls `execute()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedExecute_reverts` |
-| Random address calls `executeBatch()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedExecuteBatch_reverts` |
-| Random address calls `deploy()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedDeploy_reverts` |
 | Random address calls `deployDeterministic()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedDeployDeterministic_reverts` |
 
 The `onlyEntryPointOrSelf` modifier ensures only two callers are allowed:
@@ -286,7 +271,7 @@ Each EOA sets its own EntryPoint via `initialize()` after delegation. This allow
 5. UserOp submitted to bundler (e.g. Pimlico)
 6. EntryPoint → validateUserOp() recovers signature == address(this) ✓
 7. Circle Paymaster pays gas in USDC
-8. execute() / deploy() runs the target action
+8. execute() / deployDeterministic() runs the target action
 ```
 
 ## Ethereum API
@@ -320,23 +305,6 @@ function execute(address target, uint256 value, bytes calldata data)
 
 Executes a single call from this account.
 
-### executeBatch
-
-```solidity
-function executeBatch(Call[] calldata calls) external payable onlyEntryPointOrSelf
-```
-
-Executes multiple calls in a batch.
-
-### deploy
-
-```solidity
-function deploy(uint256 value, bytes calldata creationCode)
-    external payable onlyEntryPointOrSelf returns (address deployed)
-```
-
-Deploys a contract using CREATE. The address depends on the EOA's EVM nonce. Reverts with `EmptyBytecode()` if `creationCode` is empty. Emits `ContractDeployed(deployed)`.
-
 ### deployDeterministic
 
 ```solidity
@@ -356,7 +324,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 159 tests across 26 test suites.
+The project has 131 tests across 24 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -381,14 +349,13 @@ forge test --match-path "test/SmartAccount7702/*.t.sol"
 |---|---|---|
 | `ValidateUserOp.t.sol` | Signature validation, wrong signer, non-EntryPoint caller, prefund payment | Yes |
 | `Execute.t.sol` | Single call execution, access control, revert bubbling | Yes |
-| `ExecuteBatch.t.sol` | Batch execution, empty batch, revert propagation | Yes |
-| `Deploy.t.sol` | CREATE/CREATE2 deployment, empty bytecode, constructor revert, salt collision, value forwarding, access control, EntryPoint routing | Yes |
+| `Deploy.t.sol` | CREATE2 deployment, empty bytecode, constructor revert, salt collision, value forwarding, access control, EntryPoint routing | Yes |
 | `IsValidSignature.t.sol` | ERC-7739 PersonalSign path, wrong signer, invalid signature length | — |
 | `TypedDataSign.t.sol` | ERC-7739 TypedDataSign path (EIP-712 Permit), wrong signer, cross-account replay | — |
 | `EthReception.t.sol` | Plain ETH transfer (`receive`), ETH with data (`fallback`), zero-value calls | — |
 | `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute | Yes |
 | `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute | Yes |
-| `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, TypedDataSign, execution, executeBatch, deployDeterministic, and supportsInterface | — |
+| `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, TypedDataSign, execution, deployDeterministic, and supportsInterface | — |
 | `StorageLocation.t.sol` | Verifies on-chain ERC-7201 slot computation matches hardcoded `ENTRY_POINT_STORAGE_LOCATION` | — |
 
 ### Walkthrough Tests (`test/walkthrough/`)
@@ -399,13 +366,13 @@ Step-by-step tests designed to be read as documentation. Each test logs every st
 |---|---|
 | `WalkthroughSimple` | ERC-20 transfer via UserOp (no paymaster, gasFees=0) |
 | `WalkthroughPaymaster` | ERC-20 transfer with a paymaster covering gas (realistic fees) |
-| `WalkthroughDeploy` | Contract deployment via CREATE, CREATE2, and deploy-then-interact |
+| `WalkthroughDeploy` | Contract deployment via CREATE2 and deploy-then-interact |
 
 These tests share setup and helpers via the abstract `WalkthroughBase` contract and use a `MockPaymaster` (accept-all) for the paymaster flow.
 
 ### Fuzz Tests (`test/SmartAccount7702/Fuzz.t.sol`)
 
-15 property-based fuzz tests (256 runs each by default) covering the core signing, execution, and deployment paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
+14 property-based fuzz tests (256 runs each by default) covering the core signing, execution, and deployment paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
 
 | Test | Property |
 |---|---|
@@ -420,7 +387,6 @@ These tests share setup and helpers via the abstract `WalkthroughBase` contract 
 | `testFuzz_isValidSignature_typedDataSign_valid` | Fuzzed permit parameters through full ERC-7739 TypedDataSign encoding validate correctly |
 | `testFuzz_execute_ethTransfer` | Fuzzed ETH amounts transfer correctly to fuzzed recipients |
 | `testFuzz_execute_erc20Transfer` | Fuzzed ERC-20 amounts transfer correctly to fuzzed recipients |
-| `testFuzz_executeBatch_multipleValues` | Fuzzed number of calls (1–8) with fuzzed ETH values distribute correctly |
 | `testFuzz_deployDeterministic_predictedAddress` | Fuzzed salt produces deployed address matching CREATE2 prediction |
 | `test_supportsInterface_knownIds` | All 6 known interface IDs return `true` |
 | `testFuzz_supportsInterface_unknownId` | Random unknown interface IDs always return `false` |
@@ -448,7 +414,7 @@ forge test --match-contract TestFuzz --fuzz-runs 10000
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 
-14 adversarial tests that simulate attacks and pass if the attack is correctly prevented. Both EntryPoint v0.9 and v0.8 variants are tested (28 total). See [Threat Model](#threat-model) for details.
+12 adversarial tests that simulate attacks and pass if the attack is correctly prevented. Both EntryPoint v0.9 and v0.8 variants are tested (24 total). See [Threat Model](#threat-model) for details.
 
 ## Developing
 
@@ -505,20 +471,85 @@ Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), 
 | **L-1**: Literal instead of constant (`0x150b7a02`) | Acknowledged — mitigated by tests using `type(Interface).interfaceId` |
 | **L-2**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
 | **L-3**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn limitation) |
-| **L-4**: Uninitialized local variable (`uint256 i`) | Acknowledged — follows OpenZeppelin convention |
+| **L-4**: Uninitialized local variable (`uint256 i`) | No longer applicable — `executeBatch` removed |
 
 #### Slither
 
 Static analysis was also performed using [Slither](https://github.com/crytic/slither), a Python-based Solidity and Vyper static analysis framework by Trail of Bits.
 
-- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 5 informational
+- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 4 informational (1 removed with `deploy()`)
 - [Feedback](doc/audit/tool/slither/slither-report-feedback.md) — analysis for each finding
 
 | Finding | Count | Verdict |
 |---|---|---|
-| **Assembly usage** (Informational) | 5 instances | Acknowledged — all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deploy`/`deployDeterministic` (CREATE/CREATE2) |
+| **Assembly usage** (Informational) | 4 instances | Acknowledged — all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deployDeterministic` (CREATE2) |
 
 No high, medium, or low severity issues were detected.
+
+## FAQ
+
+### Why not use `IAccountExecute`?
+
+ERC-4337 defines an optional `IAccountExecute` interface where the EntryPoint calls `account.executeUserOp(userOp, userOpHash)` instead of `account.call(userOp.callData)`. This wallet uses direct `callData` dispatch instead for three reasons:
+
+1. **It does not eliminate existing functions.** `executeUserOp` is only called by the EntryPoint. For direct EOA transactions (`msg.sender == address(this)`), `deployDeterministic` is still needed because regular transactions use the CALL opcode — CREATE2 requires contract code execution. Adopting `executeUserOp` would add a function while still keeping `deployDeterministic`.
+
+2. **Extra indirection with no benefit.** This wallet does not need UserOp fields at execution time — it only needs the target, value, and data, which are already encoded in `callData`. Most `executeUserOp` implementations end up doing `address(this).call(userOp.callData[4:])`, adding a call frame and gas overhead for nothing.
+
+3. **It is designed for more complex accounts.** `executeUserOp` is useful for session keys (enforcing gas/spending caps from UserOp parameters), spending policies (inspecting paymaster data), ERC-7579 modular accounts, or custom callData encodings. None of these apply to a minimal single-owner wallet.
+
+| Aspect | Direct `callData` (current) | `executeUserOp` |
+|---|---|---|
+| EntryPoint calls | `account.call(userOp.callData)` | `account.executeUserOp(userOp, hash)` |
+| Simplicity | Simple — function called directly | Must parse `callData` internally |
+| Gas | No overhead | Extra call frame + calldata copying |
+| UserOp access at execution | Not available | Full UserOp + hash available |
+| Use case fit | Minimal single-owner wallet | Modular accounts, session keys |
+
+### Where is the destination in a `PackedUserOperation`?
+
+There is **no explicit destination field**. The `sender` is the account (smart wallet), not the call target. There is no `to` field.
+
+The destination lives inside `callData`, encoded as a function argument:
+
+```solidity
+userOp.callData = abi.encodeCall(SmartAccount7702.execute, (
+    0xRecipient,  // ← destination (target)
+    1 ether,      // ← value
+    ""            // ← call data
+));
+```
+
+This is by design in ERC-4337: the EntryPoint only knows about the account (`sender`). How the account interprets `callData` — including which contract to call — is entirely up to the account's implementation.
+
+### How does the EntryPoint call `execute`?
+
+The EntryPoint treats the account as a black box. During execution, it performs a raw `call` with whatever bytes the user put in `userOp.callData`:
+
+```
+1. Bundler → EntryPoint.handleOps([userOp])
+2. EntryPoint → account.validateUserOp(userOp, hash, prefund)   // validation phase
+3. EntryPoint → account.call(userOp.callData)                   // execution phase
+```
+
+The user (or SDK) encodes the desired function into `userOp.callData`:
+
+```solidity
+// Single call
+userOp.callData = abi.encodeCall(SmartAccount7702.execute, (target, value, data));
+
+// Deterministic contract deployment
+userOp.callData = abi.encodeCall(SmartAccount7702.deployDeterministic, (0, creationCode, salt));
+```
+
+The ABI-encoded bytes resolve to the function selector, and the EVM dispatches to the right function. The `onlyEntryPointOrSelf` modifier passes because `msg.sender == entryPoint()`.
+
+Two callers are allowed:
+
+| Caller | How | `msg.sender` |
+|---|---|---|
+| EntryPoint | Via `handleOps` → `userOp.callData` | `entryPoint()` address |
+| EOA itself | Direct type-4 (EIP-7702) transaction with `to = self` | `address(this)` |
 
 ## References
 
