@@ -43,7 +43,9 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     error EmptyBytecode();
 
     /// @notice Emitted when the account is initialized with an EntryPoint.
-    event Initialized(address indexed entryPoint);
+    /// @dev Named `EntryPointSet` (not `Initialized`) to avoid shadowing OZ's
+    ///      `Initializable.Initialized(uint64 version)` which is also emitted during `initialize()`.
+    event EntryPointSet(address indexed entryPoint);
 
     /// @notice Emitted when a contract is deployed via CREATE or CREATE2.
     event ContractDeployed(address indexed deployed);
@@ -88,7 +90,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     function initialize(address entryPoint_) external initializer {
         if (msg.sender != address(this)) revert Unauthorized();
         _getEntryPointStorage().entryPoint = entryPoint_;
-        emit Initialized(entryPoint_);
+        emit EntryPointSet(entryPoint_);
     }
 
     /// @notice Reverts if the caller is not the EntryPoint.

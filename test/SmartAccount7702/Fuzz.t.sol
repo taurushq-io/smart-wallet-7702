@@ -3,6 +3,7 @@ pragma solidity ^0.8.33;
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
+import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import "./SmartWalletTestBase.sol";
 
@@ -237,15 +238,16 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     //  executeBatch — fuzzed call count and values
     // =====================================================================
 
-    /// @dev For a fuzzed number of calls (1-8) with fuzzed ETH values, executeBatch
-    ///      should distribute the correct value to each target.
-    function testFuzz_executeBatch_multipleValues(uint256 seed) public {
-        uint256 callCount = bound(seed, 1, 8);
+    /// @dev For a fuzzed number of calls (1-8) with independently fuzzed ETH values,
+    ///      executeBatch should distribute the correct value to each target.
+    ///      Using a fixed-size array gives the fuzzer independent shrinking per element.
+    function testFuzz_executeBatch_multipleValues(uint8 callCount, uint256[8] memory values) public {
+        callCount = uint8(bound(callCount, 1, 8));
         uint256 totalValue;
         SmartAccount7702.Call[] memory calls = new SmartAccount7702.Call[](callCount);
 
         for (uint256 i; i < callCount; i++) {
-            uint256 value = uint256(keccak256(abi.encode(seed, i))) % 1 ether;
+            uint256 value = bound(values[i], 0, 1 ether);
             calls[i].target = address(uint160(0x1000 + i));
             calls[i].value = value;
             calls[i].data = "";
@@ -357,14 +359,5 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
             )
         );
         return keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
-    }
-}
-
-/// @dev Simple storage contract used in fuzz deploy tests.
-contract SimpleStorage {
-    uint256 public value;
-
-    constructor(uint256 _value) payable {
-        value = _value;
     }
 }

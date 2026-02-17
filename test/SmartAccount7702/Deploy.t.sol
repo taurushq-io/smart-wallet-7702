@@ -2,16 +2,8 @@
 pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
+import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import "./SmartWalletTestBase.sol";
-
-/// @dev Simple contract deployed inside tests.
-contract SimpleStorage {
-    uint256 public value;
-
-    constructor(uint256 _value) payable {
-        value = _value;
-    }
-}
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {

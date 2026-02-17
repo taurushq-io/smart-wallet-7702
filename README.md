@@ -90,7 +90,7 @@ The contract implements all three receiver callbacks:
 
 | Event | Emitted by |
 |---|---|
-| `Initialized(address indexed entryPoint)` | `initialize()` — logs the EntryPoint address set for this EOA |
+| `EntryPointSet(address indexed entryPoint)` | `initialize()` — logs the EntryPoint address set for this EOA |
 | `ContractDeployed(address indexed deployed)` | `deploy()`, `deployDeterministic()` — logs the address of each newly deployed contract |
 
 ## Initialization Model
@@ -297,7 +297,7 @@ Each EOA sets its own EntryPoint via `initialize()` after delegation. This allow
 function initialize(address entryPoint_) external initializer
 ```
 
-Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. The `initializer` modifier ensures this cannot be called twice on the same EOA. Emits `Initialized(entryPoint)`.
+Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. The `initializer` modifier ensures this cannot be called twice on the same EOA. Emits `EntryPointSet(entryPoint)`.
 
 ### validateUserOp
 
@@ -356,7 +356,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 137 tests across 24 test suites.
+The project has 151 tests across 25 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -433,7 +433,7 @@ forge test --match-contract TestFuzz --fuzz-runs 10000
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 
-14 adversarial tests that simulate attacks and pass if the attack is correctly prevented. See [Threat Model](#threat-model) for details.
+14 adversarial tests that simulate attacks and pass if the attack is correctly prevented. Both EntryPoint v0.9 and v0.8 variants are tested (28 total). See [Threat Model](#threat-model) for details.
 
 ## Developing
 

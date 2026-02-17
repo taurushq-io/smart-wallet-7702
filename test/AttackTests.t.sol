@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import {Test, console2} from "forge-std/Test.sol";
-import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
+import {Test} from "forge-std/Test.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
@@ -10,6 +9,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {SmartAccount7702} from "../src/SmartAccount7702.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
+import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 /// @dev Malicious "EntryPoint" that an attacker deploys.
 ///      Once set as the account's EntryPoint via front-running initialize(),
@@ -47,7 +47,9 @@ contract MaliciousEntryPoint {
 ///      8. ERC-1271 cross-account signature replay
 ///      9. Uninitialized account exploitation
 ///     10. validateUserOp from non-EntryPoint
-contract AttackTests is Test {
+///
+/// @dev Abstract base — concrete classes provide the EntryPoint version via `_deployEntryPointCode()`.
+abstract contract AttackTestsBase is Test {
     // -----------------------------------------------------------------------
     // Actors
     // -----------------------------------------------------------------------
@@ -72,10 +74,12 @@ contract AttackTests is Test {
     // Setup helpers
     // -----------------------------------------------------------------------
 
+    /// @dev Override to deploy the EntryPoint bytecode at the canonical address.
+    function _deployEntryPoint() internal virtual;
+
     /// @dev Deploys infrastructure and simulates EIP-7702 delegation WITHOUT initializing.
     function _setupUninitialized() internal {
-        EntryPoint ep = new EntryPoint();
-        vm.etch(address(entryPoint), address(ep).code);
+        _deployEntryPoint();
 
         SmartAccount7702 impl = new SmartAccount7702();
         vm.etch(alice, address(impl).code);
@@ -422,6 +426,14 @@ contract AttackTests is Test {
 
         // Alice's account still uninitialized
         assertEq(smartAccount.entryPoint(), address(0));
+    }
+}
+
+/// @dev Runs attack tests against EntryPoint v0.9.
+contract AttackTests is AttackTestsBase {
+    function _deployEntryPoint() internal override {
+        EntryPoint ep = new EntryPoint();
+        vm.etch(address(entryPoint), address(ep).code);
     }
 }
 
