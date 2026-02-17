@@ -3,10 +3,9 @@ pragma solidity 0.8.33;
 
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {Receiver} from "solady/accounts/Receiver.sol";
-import {ECDSA} from "solady/utils/ECDSA.sol";
-
-import {ERC1271} from "./ERC1271.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
+import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
 
 /// @title SmartAccount7702
 ///
@@ -23,11 +22,10 @@ import {ERC1271} from "./ERC1271.sol";
 ///      Upgradeability is handled natively by EIP-7702: the EOA can re-delegate to a new
 ///      implementation at any time by signing a new authorization tuple. No UUPS proxy is needed.
 ///
-///      This contract inherits `Receiver` (Solady) which provides `receive()` and `fallback()`
-///      functions. This is essential: with EIP-7702, the EOA has code, so plain ETH transfers
-///      require a `receive()` function to succeed. Without it, the delegating EOA would be unable
-///      to receive ETH.
-contract SmartAccount7702 is ERC1271, IAccount, Receiver {
+///      This contract provides `receive()` and `fallback()` functions. This is essential:
+///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
+///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
+contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Represents a call to make.
     struct Call {
         /// @dev The address to call.
@@ -50,7 +48,7 @@ contract SmartAccount7702 is ERC1271, IAccount, Receiver {
 
     /// @notice Creates the SmartAccount7702 implementation with a specific EntryPoint.
     /// @param entryPoint_ The EntryPoint address this account will trust.
-    constructor(address entryPoint_) {
+    constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
         _entryPoint = entryPoint_;
     }
 
@@ -95,9 +93,10 @@ contract SmartAccount7702 is ERC1271, IAccount, Receiver {
         (missingAccountFunds);
 
         // Recover signer and verify it's the EOA itself.
-        // tryRecoverCalldata returns address(0) on invalid signatures instead of reverting,
-        // which lets us return 1 (SIG_VALIDATION_FAILED) for bundler simulation support.
-        if (!_isValidSignature(userOpHash, userOp.signature)) {
+        // _rawSignatureValidation (from SignerEIP7702) returns false on invalid signatures
+        // instead of reverting, which lets us return 1 (SIG_VALIDATION_FAILED) for bundler
+        // simulation support.
+        if (!_rawSignatureValidation(userOpHash, userOp.signature)) {
             return 1;
         }
 
@@ -142,22 +141,8 @@ contract SmartAccount7702 is ERC1271, IAccount, Receiver {
     function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
         return interfaceId == type(IAccount).interfaceId // 0x3a871cdd
             || interfaceId == bytes4(0x1626ba7e) // ERC-1271
+            || interfaceId == bytes4(0x77390001) // ERC-7739
             || interfaceId == bytes4(0x01ffc9a7); // ERC-165
-    }
-
-    /// @inheritdoc ERC1271
-    ///
-    /// @dev Validates the signature by recovering the ECDSA signer and checking it matches
-    ///      `address(this)` (the delegating EOA). Uses `tryRecoverCalldata` to avoid reverting
-    ///      on malformed signatures.
-    function _isValidSignature(bytes32 hash, bytes calldata signature)
-        internal
-        view
-        virtual
-        override
-        returns (bool)
-    {
-        return ECDSA.tryRecoverCalldata(hash, signature) == address(this);
     }
 
     /// @dev Executes a call and bubbles up revert data on failure.
@@ -175,8 +160,9 @@ contract SmartAccount7702 is ERC1271, IAccount, Receiver {
         }
     }
 
-    /// @inheritdoc ERC1271
-    function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
-        return ("Smart Account 7702", "1");
-    }
+    /// @dev Allows the account to receive ETH.
+    receive() external payable {}
+
+    /// @dev Allows the account to receive ETH with data and handle unknown function calls.
+    fallback() external payable {}
 }

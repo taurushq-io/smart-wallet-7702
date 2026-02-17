@@ -2,7 +2,6 @@
 pragma solidity ^0.8.33;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {SafeSingletonDeployer} from "safe-singleton-deployer-sol/src/SafeSingletonDeployer.sol";
 
 import {SmartAccount7702} from "../src/SmartAccount7702.sol";
 
@@ -16,10 +15,12 @@ contract DeploySmartAccount7702Script is Script {
         address entryPoint = vm.envAddress("ENTRY_POINT");
         console2.log("EntryPoint", entryPoint);
 
-        address implementation = SafeSingletonDeployer.broadcastDeploy({
-            creationCode: abi.encodePacked(type(SmartAccount7702).creationCode, abi.encode(entryPoint)),
-            salt: 0x3771220e68256b8d5aa359fe953bf594dad1a5473239d1251256f0e5e7473b16
-        });
-        console2.log("implementation", implementation);
+        bytes32 salt = 0x3771220e68256b8d5aa359fe953bf594dad1a5473239d1251256f0e5e7473b16;
+
+        vm.startBroadcast();
+        SmartAccount7702 implementation = new SmartAccount7702{salt: salt}(entryPoint);
+        vm.stopBroadcast();
+
+        console2.log("implementation", address(implementation));
     }
 }

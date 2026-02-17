@@ -6,7 +6,7 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
-import {MockERC20} from "../../lib/solady/test/utils/mocks/MockERC20.sol";
+import {MockERC20} from "../mocks/MockERC20.sol";
 
 import {MockTarget} from "../mocks/MockTarget.sol";
 import {SmartWalletTestBase} from "../SmartAccount7702/SmartWalletTestBase.sol";
