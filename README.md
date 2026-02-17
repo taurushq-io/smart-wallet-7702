@@ -32,6 +32,10 @@ SmartAccount7702
   └── Initializable (OZ — one-time initialization guard)
 ```
 
+### EIP-712 Domain
+
+The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`), where the "T" stands for **Taurus** — the organization behind this wallet. This name is baked into bytecode immutables at construction and cannot be changed after deployment. All off-chain signing tools, dApps, and integrators must use this exact string to produce valid ERC-1271 / ERC-7739 signatures. The `eip712Domain()` view function returns the domain parameters for programmatic discovery.
+
 ### Access Control
 
 | Function | Guard |

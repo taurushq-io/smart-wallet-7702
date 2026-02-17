@@ -59,6 +59,8 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     ///      delegating EOAs and work correctly under EIP-7702.
     ///      `_disableInitializers()` prevents `initialize()` from being called on the implementation
     ///      contract itself. Each delegating EOA has clean storage and can call `initialize()` once.
+    ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
+    ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
     constructor() EIP712("TSmart Account 7702", "1") {
         _disableInitializers();
     }
@@ -175,9 +177,10 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         returns (address deployed)
     {
         if (creationCode.length == 0) revert EmptyBytecode();
-        // Memory-safe: writes beyond the free memory pointer but no Solidity code
-        // runs after the assembly block — the function either returns or reverts.
-        // Skipping `mstore(0x40, ...)` saves gas.
+        // Memory-safe: writes beyond the free memory pointer without advancing it.
+        // The only Solidity after the assembly is `emit ContractDeployed(deployed)`,
+        // which uses only indexed parameters (LOG2 with zero data bytes) and does not
+        // allocate memory. `deployed` is on the stack, not in the overwritten area at `m`.
         assembly ("memory-safe") {
             let m := mload(0x40)
             calldatacopy(m, creationCode.offset, creationCode.length)
@@ -209,9 +212,10 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         returns (address deployed)
     {
         if (creationCode.length == 0) revert EmptyBytecode();
-        // Memory-safe: writes beyond the free memory pointer but no Solidity code
-        // runs after the assembly block — the function either returns or reverts.
-        // Skipping `mstore(0x40, ...)` saves gas.
+        // Memory-safe: writes beyond the free memory pointer without advancing it.
+        // The only Solidity after the assembly is `emit ContractDeployed(deployed)`,
+        // which uses only indexed parameters (LOG2 with zero data bytes) and does not
+        // allocate memory. `deployed` is on the stack, not in the overwritten area at `m`.
         assembly ("memory-safe") {
             let m := mload(0x40)
             calldatacopy(m, creationCode.offset, creationCode.length)
