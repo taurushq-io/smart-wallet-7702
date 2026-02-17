@@ -15,10 +15,9 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 /// @dev With EIP-7702, an EOA delegates its code to this contract. `address(this)` is the EOA
 ///      itself, so owner management is unnecessary — the EOA's private key is the sole authority.
 ///
-///      This account is designed to be used exclusively with a paymaster (e.g. Circle USDC Paymaster)
-///      for gas sponsorship. The account does not hold ETH for gas and does not implement prefund
-///      logic. The `missingAccountFunds` parameter in `validateUserOp` is ignored because the
-///      paymaster covers all gas costs (missingAccountFunds == 0 when a paymaster is present).
+///      The account supports both paymaster-sponsored and self-funded UserOperations.
+///      When a paymaster is present, `missingAccountFunds` is 0 and no ETH is needed.
+///      When no paymaster is used, the account pays the required prefund from its ETH balance.
 ///
 ///      Upgradeability is handled natively by EIP-7702: the EOA can re-delegate to a new
 ///      implementation at any time by signing a new authorization tuple. No UUPS proxy is needed.
@@ -107,20 +106,30 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     ///      `address(this)` (the EOA that delegated to this contract via EIP-7702).
     ///      Returns 1 on signature failure to allow simulation calls without a valid signature.
     ///
-    /// @dev This account is paymaster-only: it does not hold ETH for gas and does not pay
-    ///      `missingAccountFunds` to the EntryPoint. When a paymaster is used,
-    ///      `missingAccountFunds` is always 0. If a bundler submits a UserOp without a paymaster,
-    ///      the EntryPoint will revert during its own balance check — the account intentionally
-    ///      does not pay prefund.
+    /// @dev The account supports both paymaster-sponsored and self-funded UserOperations:
+    ///
+    ///      - **With paymaster**: `missingAccountFunds` is 0, no ETH needed from the account.
+    ///      - **Self-funded**: The account pays `missingAccountFunds` to the EntryPoint from
+    ///        its ETH balance. If the account has insufficient ETH, the EntryPoint reverts.
+    ///
+    ///      Paying prefund ensures the wallet remains functional even if the paymaster goes
+    ///      offline or is discontinued. Without this, the wallet would be completely dependent
+    ///      on a third-party paymaster service for all UserOperation flows. The EOA can always
+    ///      fall back to self-funding by holding ETH.
     function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         onlyEntryPoint
         returns (uint256 validationData)
     {
-        // Paymaster-only: this account never pays prefund. If no paymaster is attached,
-        // missingAccountFunds > 0 and the EntryPoint will revert during its balance check.
-        // This is intentional — the account is designed exclusively for paymaster-sponsored flows.
-        (missingAccountFunds);
+        // Pay prefund to the EntryPoint if required. When a paymaster sponsors the UserOp,
+        // missingAccountFunds is 0 and this is a no-op. When self-funding, the account
+        // sends the required ETH. The EntryPoint is trusted (onlyEntryPoint), so we
+        // ignore the return value — if the account lacks funds, the EntryPoint reverts.
+        if (missingAccountFunds > 0) {
+            assembly ("memory-safe") {
+                pop(call(gas(), caller(), missingAccountFunds, 0x00, 0x00, 0x00, 0x00))
+            }
+        }
 
         // Recover signer and verify it's the EOA itself.
         // _rawSignatureValidation (from SignerEIP7702) returns false on invalid signatures

@@ -244,19 +244,17 @@ These risks are inherent to the EIP-7702 model and cannot be mitigated at the sm
 |---|---|
 | **Private key compromise** | If the EOA's private key is stolen, the attacker has full control. There is no multi-sig, guardian, or social recovery — by design, the EOA key is the sole authority. |
 | **Re-delegation to malicious implementation** | The EOA can re-delegate to any contract via EIP-7702. If the owner is tricked into signing an authorization tuple pointing to a malicious implementation, the new code could drain the account. |
-| **Paymaster dependency** | The account is paymaster-only. If the paymaster goes offline, the account cannot submit UserOperations. The EOA can still send direct transactions (as `msg.sender == address(this)`). |
 
 ## Design Decisions
 
-### No Prefund Payment
+### Dual Gas Model (Paymaster or Self-Funded)
 
-This account is designed to work exclusively with a paymaster (e.g. the [Circle USDC Paymaster](https://developers.circle.com/paymaster)) for gas sponsorship. The `missingAccountFunds` parameter in `validateUserOp` is intentionally ignored because:
+The account supports both gas payment modes:
 
-- The paymaster covers all gas costs, so `missingAccountFunds` is always `0` when a paymaster is present in the UserOperation
-- The account does not need to hold ETH for gas purposes
-- This simplifies the contract and reduces attack surface
+- **With paymaster**: A paymaster (e.g. the [Circle USDC Paymaster](https://developers.circle.com/paymaster)) sponsors gas. `missingAccountFunds` is `0` and no ETH is needed from the account.
+- **Self-funded**: When no paymaster is attached, `validateUserOp` pays `missingAccountFunds` to the EntryPoint from the account's ETH balance. The EOA must hold sufficient ETH to cover gas.
 
-If you need an account that self-pays for gas (without a paymaster), you must add prefund logic back to `validateUserOp`.
+This ensures the wallet remains functional even if a paymaster goes offline or is discontinued.
 
 ### No UUPS Proxy
 
@@ -311,7 +309,7 @@ function validateUserOp(
 ) external onlyEntryPoint returns (uint256 validationData)
 ```
 
-Validates the UserOperation signature. Returns `0` on success, `1` on signature failure (to support simulation). The signature should be a raw ECDSA signature (`abi.encodePacked(r, s, v)`) — no wrapper struct.
+Validates the UserOperation signature. Returns `0` on success, `1` on signature failure (to support simulation). The signature should be a raw ECDSA signature (`abi.encodePacked(r, s, v)`) — no wrapper struct. If `missingAccountFunds > 0` (no paymaster), the account pays the required prefund to the EntryPoint from its ETH balance.
 
 ### execute
 
