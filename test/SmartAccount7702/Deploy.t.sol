@@ -87,13 +87,18 @@ abstract contract TestDeployBase is SmartWalletTestBase {
 
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(99)));
 
+        // Record the nonce before CREATE so we can compute the deployed address afterwards.
+        uint64 nonceBefore = vm.getNonce(address(account));
+
         userOpCalldata = abi.encodeCall(SmartAccount7702.deploy, (0, creationCode));
         _sendUserOperation(_getUserOpWithSignature());
 
-        // Verify by checking the nonce advanced (deploy succeeded inside UserOp)
-        // The deployed address is returned but we can't capture it from handleOps.
-        // Instead, we verify the EVM nonce incremented (CREATE increments it).
-        assertGt(vm.getNonce(address(account)), 0);
+        // CREATE uses the account's EVM nonce. After the UserOp, the nonce has been incremented.
+        // The deployed address is deterministic: keccak256(rlp([sender, nonce])).
+        assertGt(vm.getNonce(address(account)), nonceBefore, "nonce should advance after CREATE");
+
+        address deployed = computeCreateAddress(address(account), nonceBefore);
+        assertEq(SimpleStorage(deployed).value(), 99, "deployed contract should be initialized with 99");
     }
 
     // -----------------------------------------------------------------------

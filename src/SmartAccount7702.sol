@@ -48,10 +48,20 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @notice Emitted when a contract is deployed via CREATE or CREATE2.
     event ContractDeployed(address indexed deployed);
 
-    /// @notice The EntryPoint address this account trusts for UserOp validation.
-    /// @dev Set via `initialize()`, stored in the delegating EOA's storage.
-    ///      Each EOA can configure its own EntryPoint after delegating to this implementation.
-    address private _entryPoint;
+    /// @custom:storage-location erc7201:smartaccount7702.entrypoint
+    struct EntryPointStorage {
+        address entryPoint;
+    }
+
+    /// @dev ERC-7201 namespaced storage slot for `EntryPointStorage`.
+    ///      keccak256(abi.encode(uint256(keccak256("smartaccount7702.entrypoint")) - 1)) & ~bytes32(uint256(0xff))
+    ///
+    ///      Using ERC-7201 prevents slot collisions under EIP-7702 re-delegation: if an EOA
+    ///      previously delegated to another implementation that wrote to low slots (0, 1, ...),
+    ///      re-delegating to this contract would misinterpret that data as an EntryPoint address.
+    ///      The namespaced slot is derived from a unique string, making collision practically impossible.
+    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION =
+        0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
     /// @notice Deploys the implementation and disables initialization on it.
     /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
@@ -77,7 +87,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @param entryPoint_ The EntryPoint address this account will trust.
     function initialize(address entryPoint_) external initializer {
         if (msg.sender != address(this)) revert Unauthorized();
-        _entryPoint = entryPoint_;
+        _getEntryPointStorage().entryPoint = entryPoint_;
         emit Initialized(entryPoint_);
     }
 
@@ -243,7 +253,14 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
 
     /// @notice Returns the address of the trusted EntryPoint.
     function entryPoint() public view virtual returns (address) {
-        return _entryPoint;
+        return _getEntryPointStorage().entryPoint;
+    }
+
+    /// @dev Returns the ERC-7201 namespaced storage pointer for `EntryPointStorage`.
+    function _getEntryPointStorage() private pure returns (EntryPointStorage storage $) {
+        assembly {
+            $.slot := ENTRY_POINT_STORAGE_LOCATION
+        }
     }
 
     /// @notice ERC-165 interface detection.

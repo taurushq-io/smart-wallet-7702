@@ -80,10 +80,14 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     //  validateUserOp — prefund payment
     // =====================================================================
 
-    /// @dev For any prefund amount <= account balance, the account sends it to the EntryPoint.
-    function testFuzz_validateUserOp_prefund(bytes32 userOpHash, uint256 prefund) public {
+    /// @dev For any prefund amount <= account balance, the account sends the prefund to the
+    ///      EntryPoint and keeps the remainder. The account balance is fuzzed independently
+    ///      (always >= prefund) to cover partial-drain scenarios, not just full drain.
+    function testFuzz_validateUserOp_prefund(bytes32 userOpHash, uint256 prefund, uint256 extraBalance) public {
         prefund = bound(prefund, 1, 100 ether);
-        vm.deal(address(account), prefund);
+        extraBalance = bound(extraBalance, 0, 10 ether);
+        uint256 accountBalance = prefund + extraBalance;
+        vm.deal(address(account), accountBalance);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, userOpHash);
 
@@ -96,7 +100,7 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
 
         assertEq(result, 0, "signature should be valid");
         assertEq(address(mockEp).balance, epBalanceBefore + prefund, "EntryPoint should receive prefund");
-        assertEq(address(account).balance, 0, "account should have zero balance after full prefund");
+        assertEq(address(account).balance, extraBalance, "account should retain the remainder");
     }
 
     /// @dev When prefund is 0 (paymaster present), no ETH moves regardless of account balance.
@@ -230,6 +234,113 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     }
 
     // =====================================================================
+    //  executeBatch — fuzzed call count and values
+    // =====================================================================
+
+    /// @dev For a fuzzed number of calls (1-8) with fuzzed ETH values, executeBatch
+    ///      should distribute the correct value to each target.
+    function testFuzz_executeBatch_multipleValues(uint256 seed) public {
+        uint256 callCount = bound(seed, 1, 8);
+        uint256 totalValue;
+        SmartAccount7702.Call[] memory calls = new SmartAccount7702.Call[](callCount);
+
+        for (uint256 i; i < callCount; i++) {
+            uint256 value = uint256(keccak256(abi.encode(seed, i))) % 1 ether;
+            calls[i].target = address(uint160(0x1000 + i));
+            calls[i].value = value;
+            calls[i].data = "";
+            totalValue += value;
+        }
+
+        vm.deal(address(account), totalValue);
+        vm.prank(address(account));
+        account.executeBatch(calls);
+
+        for (uint256 i; i < callCount; i++) {
+            assertEq(calls[i].target.balance, calls[i].value, "each target should receive its value");
+        }
+    }
+
+    // =====================================================================
+    //  isValidSignature — TypedDataSign path
+    // =====================================================================
+
+    /// @dev Must match OZ's ERC7739Utils.TYPED_DATA_SIGN_TYPEHASH construction for a Permit.
+    bytes32 internal constant PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+    /// @dev For any fuzzed permit parameters, a correctly constructed TypedDataSign
+    ///      signature must validate via isValidSignature.
+    function testFuzz_isValidSignature_typedDataSign_valid(
+        address spender,
+        uint256 value,
+        uint256 nonce,
+        uint256 deadline,
+        address appContract
+    ) public view {
+        vm.assume(appContract != address(0));
+
+        bytes32 appDomainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256("MyToken"),
+                keccak256("1"),
+                block.chainid,
+                appContract
+            )
+        );
+
+        bytes32 contentsHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, address(account), spender, value, nonce, deadline));
+
+        bytes32 appHash = keccak256(abi.encodePacked("\x19\x01", appDomainSeparator, contentsHash));
+
+        string memory contentsDescr =
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)";
+
+        bytes memory domainBytes = abi.encode(
+            keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0)
+        );
+
+        bytes32 typedDataSignTypehash = keccak256(
+            abi.encodePacked(
+                "TypedDataSign("
+                "Permit"
+                " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+            )
+        );
+
+        bytes32 structHash = keccak256(abi.encodePacked(typedDataSignTypehash, contentsHash, domainBytes));
+        bytes32 toSign = keccak256(abi.encodePacked("\x19\x01", appDomainSeparator, structHash));
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+
+        bytes memory encodedSig = abi.encodePacked(
+            abi.encodePacked(r, s, v), appDomainSeparator, contentsHash, contentsDescr, uint16(bytes(contentsDescr).length)
+        );
+
+        bytes4 result = account.isValidSignature(appHash, encodedSig);
+        assertEq(result, bytes4(0x1626ba7e), "TypedDataSign with valid fuzzed params should validate");
+    }
+
+    // =====================================================================
+    //  deploy / deployDeterministic
+    // =====================================================================
+
+    /// @dev For any fuzzed salt, deployDeterministic should place code at the predicted address.
+    function testFuzz_deployDeterministic_predictedAddress(bytes32 salt) public {
+        bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(42)));
+        address predicted = computeCreate2Address(salt, keccak256(creationCode), address(account));
+
+        vm.prank(address(account));
+        address deployed = account.deployDeterministic(0, creationCode, salt);
+
+        assertEq(deployed, predicted, "deployed address must match CREATE2 prediction");
+        assertEq(SimpleStorage(deployed).value(), 42, "deployed contract must be initialized");
+    }
+
+    // =====================================================================
     //  Helpers
     // =====================================================================
 
@@ -246,5 +357,14 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
             )
         );
         return keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
+    }
+}
+
+/// @dev Simple storage contract used in fuzz deploy tests.
+contract SimpleStorage {
+    uint256 public value;
+
+    constructor(uint256 _value) payable {
+        value = _value;
     }
 }
