@@ -232,7 +232,7 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @notice ERC-165 interface detection.
     ///
     /// @dev Supports IAccount (ERC-4337), ERC-1271, and ERC-165 itself.
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
         return interfaceId == type(IAccount).interfaceId // 0x3a871cdd
             || interfaceId == bytes4(0x1626ba7e) // ERC-1271
             || interfaceId == bytes4(0x77390001) // ERC-7739
