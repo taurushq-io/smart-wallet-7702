@@ -1,6 +1,6 @@
 # Aderyn Static Analysis — Feedback
 
-This document provides feedback on each finding from the [Aderyn](https://github.com/Cyfrin/aderyn) static analysis report (`report.md`).
+This document provides feedback on each finding from the [Aderyn](https://github.com/Cyfrin/aderyn) static analysis report (`aderyn-report.md`).
 
 ---
 
@@ -49,7 +49,7 @@ The risk of a typo is mitigated by two layers of testing:
 
 **Status: Acknowledged — no change (intentional design)**
 
-`onlyEntryPoint` is used only by `validateUserOp`, while `onlyEntryPointOrSelf` is used by `execute`, `executeBatch`, `deploy`, and `deployDeterministic`. Having two separate modifiers is an intentional security design:
+`onlyEntryPoint` is used only by `validateUserOp`, while `onlyEntryPointOrSelf` is used by `execute` and `deployDeterministic`. Having two separate modifiers is an intentional security design:
 
 - **`onlyEntryPoint`**: Only the EntryPoint can call `validateUserOp`. The EOA itself must NOT be able to call it — `validateUserOp` is a validation function that returns `0` (valid) or `1` (invalid), not a function the owner should invoke directly.
 - **`onlyEntryPointOrSelf`**: The EntryPoint or the EOA can call execution functions. The EOA needs direct access for non-UserOp transactions.
@@ -80,18 +80,3 @@ Aderyn's note acknowledges this limitation: "No analysis has been performed to s
 
 This slot's correctness is verified on-chain by `StorageLocation.t.sol`, which recomputes the ERC-7201 formula and asserts it matches the hardcoded constant.
 
----
-
-## L-4: Uninitialized Local Variable
-
-> Initialize all the variables. If a variable is meant to be initialized to zero, explicitly set it to zero.
->
-> Found: `for (uint256 i; i < calls.length; i++)`
-
-**Status: Acknowledged — no change (style preference)**
-
-`uint256 i;` initializes to `0` by the Solidity specification. All uninitialized value types default to their zero value. There is no ambiguity or risk.
-
-The `uint256 i` (without `= 0`) style is used by OpenZeppelin and Solady — the two main dependencies of this project. Keeping consistent with the dependency conventions reduces cognitive friction for reviewers already familiar with those codebases.
-
-This is a style preference, not a correctness issue.

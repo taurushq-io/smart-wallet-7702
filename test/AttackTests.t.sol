@@ -38,8 +38,8 @@ contract MaliciousEntryPoint {
 /// @dev Attack vectors tested:
 ///
 ///      1. Front-running initialize() with a malicious EntryPoint
-    ///      2. Direct unauthorized execute() / deployDeterministic()
-    ///      3. ETH theft via execute()
+///      2. Direct unauthorized execute() / deployDeterministic()
+///      3. ETH theft via execute()
 ///      4. ERC-20 theft via execute()
 ///      5. Re-initialization (changing EntryPoint after setup)
 ///      6. UserOp with wrong signer
@@ -47,8 +47,9 @@ contract MaliciousEntryPoint {
 ///      8. ERC-1271 cross-account signature replay
 ///      9. Uninitialized account exploitation
 ///     10. validateUserOp from non-EntryPoint
+///     11. initialize() via callback from an external contract
 ///
-/// @dev Abstract base — concrete classes provide the EntryPoint version via `_deployEntryPointCode()`.
+/// @dev Abstract base — concrete classes provide the EntryPoint version via `_deployEntryPoint()`.
 abstract contract AttackTestsBase is Test {
     // -----------------------------------------------------------------------
     // Actors

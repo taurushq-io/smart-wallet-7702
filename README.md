@@ -462,8 +462,8 @@ cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 
 Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
 
-- [Raw report](doc/audit/tool/aderyn/report.md) — 1 high, 4 low findings
-- [Feedback](doc/audit/tool/aderyn/report-feedback.md) — analysis and verdict for each finding
+- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 3 low findings
+- [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md) — analysis and verdict for each finding
 
 | Finding | Verdict |
 |---|---|
@@ -471,13 +471,12 @@ Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), 
 | **L-1**: Literal instead of constant (`0x150b7a02`) | Acknowledged — mitigated by tests using `type(Interface).interfaceId` |
 | **L-2**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
 | **L-3**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn limitation) |
-| **L-4**: Uninitialized local variable (`uint256 i`) | No longer applicable — `executeBatch` removed |
 
 #### Slither
 
 Static analysis was also performed using [Slither](https://github.com/crytic/slither), a Python-based Solidity and Vyper static analysis framework by Trail of Bits.
 
-- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 4 informational (1 removed with `deploy()`)
+- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 4 informational
 - [Feedback](doc/audit/tool/slither/slither-report-feedback.md) — analysis for each finding
 
 | Finding | Count | Verdict |
