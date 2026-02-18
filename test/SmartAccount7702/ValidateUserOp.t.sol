@@ -3,11 +3,13 @@ pragma solidity ^0.8.33;
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 /// @dev Abstract test logic for validateUserOp(). Concrete classes provide the EntryPoint version.
 abstract contract TestValidateUserOpBase is SmartWalletTestBase {
-    struct _TestTemps {
+    struct TestTemps {
         bytes32 userOpHash;
         address signer;
         uint256 privateKey;
@@ -19,7 +21,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
 
     // test adapted from Solady
     function test_succeedsWithEOASigner() public {
-        _TestTemps memory t;
+        TestTemps memory t;
         t.userOpHash = keccak256("123");
         t.signer = signer;
         t.privateKey = signerPrivateKey;
@@ -76,7 +78,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
         uint256 epBalanceBefore = address(ep).balance;
         uint256 accountBalanceBefore = address(account).balance;
 
-        _TestTemps memory t;
+        TestTemps memory t;
         t.userOpHash = keccak256("self-funded");
         (t.v, t.r, t.s) = vm.sign(signerPrivateKey, t.userOpHash);
 
@@ -100,7 +102,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
         uint256 epBalanceBefore = address(ep).balance;
         uint256 accountBalanceBefore = address(account).balance;
 
-        _TestTemps memory t;
+        TestTemps memory t;
         t.userOpHash = keccak256("with-paymaster");
         (t.v, t.r, t.s) = vm.sign(signerPrivateKey, t.userOpHash);
 

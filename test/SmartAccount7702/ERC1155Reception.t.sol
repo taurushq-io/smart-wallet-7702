@@ -2,8 +2,9 @@
 pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
-import "../mocks/MockERC1155.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {MockERC1155} from "../mocks/MockERC1155.sol";
 
 /// @title ERC-1155 token reception tests
 /// @dev Verifies the smart wallet can receive and send ERC-1155 tokens.

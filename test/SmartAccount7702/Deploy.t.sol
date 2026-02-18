@@ -3,7 +3,8 @@ pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {

@@ -3,7 +3,8 @@ pragma solidity ^0.8.33;
 
 import {MockTarget} from "../mocks/MockTarget.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 
 /// @dev Abstract test logic for execute(). Concrete classes provide the EntryPoint version.
 abstract contract TestExecuteBase is SmartWalletTestBase {

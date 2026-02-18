@@ -118,8 +118,9 @@ contract EndToEndTest is SmartWalletTestBase, UseEntryPointV09 {
         // Execute and measure gas
         vm.prank(eoaUser);
         vm.startSnapshotGas("e2e_transfer_erc20_eoa");
-        usdc.transfer(address(0x5678), 100e6);
+        bool success = usdc.transfer(address(0x5678), 100e6);
         uint256 gasUsed = vm.stopSnapshotGas();
+        require(success, "ERC20 transfer failed");
         console2.log("test_transfer_erc20 EOA gas:", gasUsed);
 
         assertEq(usdc.balanceOf(address(0x5678)), recipientBefore + 100e6);

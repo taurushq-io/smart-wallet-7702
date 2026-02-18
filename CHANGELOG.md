@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0] — 2026-02-17
+## [0.2.0] — 2026-02-18
 
 ### Removed
 
@@ -10,7 +10,6 @@
 ### Updated
 
 - Tests: removed ExecuteBatch and CREATE test suites, updated walkthrough and fuzz tests
-- Documentation: README, CLAUDE.md, ACCOUNT_EXECUTE.md, create-contract.md, audit feedback files
 
 ## [0.1.0] — 2026-02-17
 

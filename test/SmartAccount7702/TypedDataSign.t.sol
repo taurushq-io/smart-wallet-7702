@@ -2,7 +2,8 @@
 pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 
 /// @title TestTypedDataSign
 /// @notice Tests the ERC-7739 TypedDataSign nested signature path for `isValidSignature`.

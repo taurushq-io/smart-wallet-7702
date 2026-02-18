@@ -6,11 +6,13 @@ import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 
+import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 /// @title TestFuzz
 ///

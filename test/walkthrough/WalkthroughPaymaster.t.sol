@@ -2,10 +2,8 @@
 pragma solidity ^0.8.33;
 
 import {console2} from "forge-std/Test.sol";
-import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {WalkthroughBase} from "./WalkthroughBase.sol";
 

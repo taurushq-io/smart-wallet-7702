@@ -2,7 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 contract TestEthReception is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Plain ETH transfer triggers `receive()`.

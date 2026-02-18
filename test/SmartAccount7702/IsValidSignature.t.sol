@@ -2,7 +2,7 @@
 pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import "./SmartWalletTestBase.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 contract TestIsValidSignature is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH

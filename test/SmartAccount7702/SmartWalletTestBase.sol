@@ -3,9 +3,9 @@ pragma solidity ^0.8.33;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {Test, console2, stdError} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 
-import "../../src/SmartAccount7702.sol";
+import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
 
 /// @dev Abstract test base for SmartAccount7702 tests.
 ///      Subclasses must provide the EntryPoint bytecode via `_deployEntryPoint()`.

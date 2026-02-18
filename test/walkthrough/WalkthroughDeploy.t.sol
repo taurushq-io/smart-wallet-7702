@@ -12,11 +12,11 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 ///      It stores the deployer (msg.sender) and an initial value.
 ///      This demonstrates that contracts deployed via the wallet have the EOA as their creator.
 contract WalkthroughStorage {
-    address public immutable deployer;
+    address public immutable DEPLOYER;
     uint256 public value;
 
     constructor(uint256 initialValue) {
-        deployer = msg.sender;
+        DEPLOYER = msg.sender;
         value = initialValue;
     }
 
@@ -114,9 +114,9 @@ contract WalkthroughDeployTest is WalkthroughBase {
         console2.log("Contract deployed at predicted address:", predictedAddr);
 
         WalkthroughStorage deployed = WalkthroughStorage(predictedAddr);
-        assertEq(deployed.deployer(), alice, "Deployer should be Alice's EOA");
+        assertEq(deployed.DEPLOYER(), alice, "Deployer should be Alice's EOA");
         assertEq(deployed.value(), initialValue, "Initial value should be 100");
-        console2.log("deployer():", deployed.deployer(), "(= Alice)");
+        console2.log("DEPLOYER():", deployed.DEPLOYER(), "(= Alice)");
         console2.log("value():", deployed.value());
 
         console2.log("");
