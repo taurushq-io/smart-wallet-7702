@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] — 2026-02-26
+
+### Added
+
+- **`version()`**: Returns the contract version string (`"0.3.0"`). Declared `external pure virtual` to allow overrides in derived contracts.
+
 ## [0.2.0] — 2026-02-18
 
 ### Removed

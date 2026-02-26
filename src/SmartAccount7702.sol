@@ -199,6 +199,11 @@ contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
         emit ContractDeployed(deployed);
     }
 
+    /// @notice Returns the contract version string.
+    function version() external pure virtual returns (string memory) {
+        return "0.3.0";
+    }
+
     /// @notice Returns the address of the trusted EntryPoint.
     function entryPoint() public view virtual returns (address) {
         return _getEntryPointStorage().entryPoint;
