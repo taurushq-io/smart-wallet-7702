@@ -7,12 +7,12 @@ script = "script"
 optimizer = true
 optimizer_runs = 200
 evm_version = "prague"
-solc_version = "0.8.33"
-gas_reports = ["SmartAccount7702"]
+solc_version = "0.8.34"
+gas_reports = ["TSmartAccount7702"]
 
 [profile.deploy]
 evm_version = "prague"
-solc_version = "0.8.33"
+solc_version = "0.8.34"
 optimizer_runs = 999999
 via_ir = true
 

@@ -5,6 +5,7 @@
 ### Changed
 
 - **Contract renamed** from `SmartAccount7702` to `TSmartAccount7702`. The `T` prefix reflects the Taurus organization. All file names, test directories, and script files updated accordingly.
+- **Solidity updated** from `0.8.33` to `0.8.34`.
 
 ### Added
 

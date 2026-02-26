@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.33;
+pragma solidity ^0.8.34;
 
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";

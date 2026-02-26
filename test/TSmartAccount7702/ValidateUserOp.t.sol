@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.33;
+pragma solidity ^0.8.34;
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";

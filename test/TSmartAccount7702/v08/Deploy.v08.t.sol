@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.33;
+pragma solidity ^0.8.34;
 
 import {TestDeployBase} from "../Deploy.t.sol";
 import {UseEntryPointV08} from "../entrypoint/UseEntryPointV08.sol";
