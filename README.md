@@ -19,6 +19,8 @@ The contract supports:
 
 ### Inheritance Graph
 
+![surya_inheritance_TSmartAccount7702.sol](./doc/surya/surya_inheritance/surya_inheritance_TSmartAccount7702.sol.png)
+
 ```
 TSmartAccount7702
   ├── ERC7739 (OZ draft — ERC-1271 + ERC-7739 anti-replay)
@@ -30,6 +32,12 @@ TSmartAccount7702
   ├── IAccount (ERC-4337)
   └── Initializable (OZ — one-time initialization guard)
 ```
+
+### Graphs
+
+![surya_graph_TSmartAccount7702.sol](./doc/surya/surya_graph/surya_graph_TSmartAccount7702.sol.png)
+
+
 
 ### EIP-712 Domain
 
