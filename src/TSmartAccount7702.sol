@@ -8,7 +8,7 @@ import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-
 import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-/// @title SmartAccount7702
+/// @title TSmartAccount7702
 ///
 /// @notice Minimal ERC-4337 smart account designed for EIP-7702 delegation.
 ///
@@ -25,7 +25,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 ///      This contract provides `receive()` and `fallback()` functions. This is essential:
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
-contract SmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
+contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized();
 

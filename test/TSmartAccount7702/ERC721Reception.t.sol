@@ -3,7 +3,7 @@ pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC721} from "../mocks/MockERC721.sol";
 
 /// @title ERC-721 token reception tests
@@ -83,7 +83,7 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         nft.mint(address(account), 1);
 
         userOpCalldata = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (address(nft), 0, abi.encodeCall(nft.transferFrom, (address(account), alice, 1)))
         );
         _sendUserOperation(_getUserOpWithSignature());
@@ -96,7 +96,7 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         nft.mint(address(account), 1);
 
         userOpCalldata = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (
                 address(nft),
                 0,

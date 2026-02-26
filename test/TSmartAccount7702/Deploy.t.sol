@@ -4,7 +4,7 @@ pragma solidity ^0.8.33;
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {
@@ -53,13 +53,13 @@ abstract contract TestDeployBase is SmartWalletTestBase {
 
         vm.prank(address(account));
         vm.expectEmit(true, false, false, false);
-        emit SmartAccount7702.ContractDeployed(predicted);
+        emit TSmartAccount7702.ContractDeployed(predicted);
         account.deployDeterministic(0, creationCode, salt);
     }
 
     function test_deployDeterministic_revertsOnEmptyBytecode() public {
         vm.prank(address(account));
-        vm.expectRevert(SmartAccount7702.EmptyBytecode.selector);
+        vm.expectRevert(TSmartAccount7702.EmptyBytecode.selector);
         account.deployDeterministic(0, "", bytes32(0));
     }
 
@@ -90,7 +90,7 @@ abstract contract TestDeployBase is SmartWalletTestBase {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(1)));
 
         vm.prank(makeAddr("random"));
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         account.deployDeterministic(0, creationCode, bytes32(0));
     }
 
@@ -101,7 +101,7 @@ abstract contract TestDeployBase is SmartWalletTestBase {
         // Predict address before deployment
         address predicted = computeCreate2Address(salt, keccak256(creationCode), address(account));
 
-        userOpCalldata = abi.encodeCall(SmartAccount7702.deployDeterministic, (0, creationCode, salt));
+        userOpCalldata = abi.encodeCall(TSmartAccount7702.deployDeterministic, (0, creationCode, salt));
         _sendUserOperation(_getUserOpWithSignature());
 
         // Verify the contract was deployed at the predicted address

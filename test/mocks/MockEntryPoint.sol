@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.33;
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 contract MockEntryPoint {
@@ -23,7 +23,7 @@ contract MockEntryPoint {
         bytes32 userOpHash,
         uint256 missingAccountFunds
     ) public payable returns (uint256 validationData) {
-        validationData = SmartAccount7702(payable(account)).validateUserOp(userOp, userOpHash, missingAccountFunds);
+        validationData = TSmartAccount7702(payable(account)).validateUserOp(userOp, userOpHash, missingAccountFunds);
     }
 
     receive() external payable {

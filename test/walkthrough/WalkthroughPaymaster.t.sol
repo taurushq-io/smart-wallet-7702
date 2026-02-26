@@ -10,7 +10,7 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 /// @title WalkthroughPaymasterTest
 ///
 /// @notice Production-realistic walkthrough: ERC-20 transfer via ERC-4337 with a paymaster
-///         covering all gas costs. This is the intended usage of SmartAccount7702.
+///         covering all gas costs. This is the intended usage of TSmartAccount7702.
 ///
 /// @dev This test extends the simple walkthrough by adding the paymaster flow:
 ///
@@ -82,7 +82,7 @@ contract WalkthroughPaymasterTest is WalkthroughBase {
         //    validatePaymasterUserOp to confirm, then charge its deposit."
         //
         // Because the paymaster pays, missingAccountFunds = 0 for the account.
-        // This is exactly what SmartAccount7702 is designed for.
+        // This is exactly what TSmartAccount7702 is designed for.
         // -------------------------------------------------------------------
         console2.log("");
         console2.log("--- STEP 5: Build UserOperation (with paymaster) ---");

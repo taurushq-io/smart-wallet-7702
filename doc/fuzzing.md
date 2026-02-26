@@ -1,6 +1,6 @@
-# Fuzz Testing — SmartAccount7702
+# Fuzz Testing — TSmartAccount7702
 
-**Source**: [`test/SmartAccount7702/Fuzz.t.sol`](../test/SmartAccount7702/Fuzz.t.sol)
+**Source**: [`test/TSmartAccount7702/Fuzz.t.sol`](../test/TSmartAccount7702/Fuzz.t.sol)
 
 ## What is Fuzz Testing?
 
@@ -23,7 +23,7 @@ function testFuzz_validateUserOp(bytes32 userOpHash) public {
 
 ## Why Fuzz This Contract?
 
-SmartAccount7702 is a security-critical contract that handles:
+TSmartAccount7702 is a security-critical contract that handles:
 
 - **Signature validation** — ECDSA recovery determines who can authorize UserOperations
 - **ETH transfers** — `validateUserOp` pays prefund to the EntryPoint; `execute` sends ETH

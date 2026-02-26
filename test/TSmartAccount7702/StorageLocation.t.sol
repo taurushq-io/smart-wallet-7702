@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 /// @title ERC-7201 Storage Location Verification
 /// @notice Computes the ERC-7201 namespaced storage slot on-chain and verifies it matches
-///         the hardcoded constant in SmartAccount7702.
+///         the hardcoded constant in TSmartAccount7702.
 ///
 /// @dev The ERC-7201 formula is:
 ///      keccak256(abi.encode(uint256(keccak256(id)) - 1)) & ~bytes32(uint256(0xff))
@@ -33,11 +33,11 @@ contract ERC7201Calculator {
 }
 
 contract TestStorageLocation is Test {
-    /// @dev The hardcoded value from SmartAccount7702.sol
+    /// @dev The hardcoded value from TSmartAccount7702.sol
     bytes32 internal constant EXPECTED_SLOT =
         0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
-    /// @dev The namespace string used in SmartAccount7702
+    /// @dev The namespace string used in TSmartAccount7702
     string internal constant NAMESPACE = "smartaccount7702.entrypoint";
 
     /// @notice Deploys the calculator contract and verifies the on-chain computation

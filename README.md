@@ -20,7 +20,7 @@ The contract supports:
 ### Inheritance Graph
 
 ```
-SmartAccount7702
+TSmartAccount7702
   ├── ERC7739 (OZ draft — ERC-1271 + ERC-7739 anti-replay)
   │     ├── IERC1271
   │     ├── EIP712 (domain separator, eip712Domain)
@@ -119,7 +119,7 @@ The wallet can deploy contracts deterministically via ERC-4337 UserOperations us
 ### How it works
 
 ```
-UserOp.callData = abi.encodeCall(SmartAccount7702.deployDeterministic, (value, creationCode, salt))
+UserOp.callData = abi.encodeCall(TSmartAccount7702.deployDeterministic, (value, creationCode, salt))
 
 EntryPoint → validateUserOp() → deployDeterministic() → CREATE2 opcode → new contract
 ```
@@ -139,14 +139,14 @@ bytes memory creationCode = abi.encodePacked(
 );
 bytes32 salt = bytes32(uint256(0x1234));
 bytes memory callData = abi.encodeCall(
-    SmartAccount7702.deployDeterministic,
+    TSmartAccount7702.deployDeterministic,
     (0, creationCode, salt)
 );
 ```
 
 ## Threat Model
 
-This section documents the attack vectors analyzed against SmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol` (v0.9) and `test/AttackTests.v08.t.sol` (v0.8).
+This section documents the attack vectors analyzed against TSmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol` (v0.9) and `test/AttackTests.v08.t.sol` (v0.8).
 
 ### Front-Running `initialize()`
 
@@ -264,8 +264,8 @@ Each EOA sets its own EntryPoint via `initialize()` after delegation. This allow
 ## Integration Flow
 
 ```
-1. Deploy SmartAccount7702 implementation contract
-2. Bob's EOA delegates to SmartAccount7702 via EIP-7702 authorization tuple
+1. Deploy TSmartAccount7702 implementation contract
+2. Bob's EOA delegates to TSmartAccount7702 via EIP-7702 authorization tuple
 3. Bob calls initialize(entryPoint) to set his trusted EntryPoint
 4. Bob signs EIP-2612 permit for USDC → Circle Paymaster
 5. UserOp submitted to bundler (e.g. Pimlico)
@@ -337,13 +337,13 @@ This ensures the smart account is compatible with both versions. Test logic is e
 
 ```bash
 # Run only V08 tests
-forge test --match-path "test/SmartAccount7702/v08/*"
+forge test --match-path "test/TSmartAccount7702/v08/*"
 
 # Run only V09 tests (default)
-forge test --match-path "test/SmartAccount7702/*.t.sol"
+forge test --match-path "test/TSmartAccount7702/*.t.sol"
 ```
 
-### Unit Tests (`test/SmartAccount7702/`)
+### Unit Tests (`test/TSmartAccount7702/`)
 
 | Test File | Coverage | V08 variant |
 |---|---|---|
@@ -370,7 +370,7 @@ Step-by-step tests designed to be read as documentation. Each test logs every st
 
 These tests share setup and helpers via the abstract `WalkthroughBase` contract and use a `MockPaymaster` (accept-all) for the paymaster flow.
 
-### Fuzz Tests (`test/SmartAccount7702/Fuzz.t.sol`)
+### Fuzz Tests (`test/TSmartAccount7702/Fuzz.t.sol`)
 
 14 property-based fuzz tests (256 runs each by default) covering the core signing, execution, and deployment paths. For a detailed explanation of each fuzzed variable, input constraints, and testing methodology, see [`doc/fuzzing.md`](doc/fuzzing.md).
 
@@ -397,7 +397,7 @@ To increase the number of runs:
 forge test --match-contract TestFuzz --fuzz-runs 10000
 ```
 
-### Deploy Script Tests (`test/script/DeploySmartAccount7702.t.sol`)
+### Deploy Script Tests (`test/script/DeployTSmartAccount7702.t.sol`)
 
 8 tests verifying the deployment script produces a correctly configured implementation:
 
@@ -410,7 +410,7 @@ forge test --match-contract TestFuzz --fuzz-runs 10000
 | `test_implementation_supportsExpectedInterfaces` | All 6 interface IDs (ERC-165, IAccount, ERC-1271, ERC-7739, ERC-721 Receiver, ERC-1155 Receiver) |
 | `test_implementation_eip712Domain` | Domain name `"TSmart Account 7702"`, version `"1"`, correct chain/address |
 | `test_implementation_hasCode` | Non-empty bytecode |
-| `test_script_runsSuccessfully` | `DeploySmartAccount7702Script.run()` completes without reverting |
+| `test_script_runsSuccessfully` | `DeployTSmartAccount7702Script.run()` completes without reverting |
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 
@@ -446,7 +446,7 @@ Then deploy the implementation:
 
 ```bash
 # 1. Deploy the implementation (initializers disabled on the implementation itself)
-forge script script/DeploySmartAccount7702.s.sol --rpc-url $RPC_URL --account $ACCOUNT --broadcast
+forge script script/DeployTSmartAccount7702.s.sol --rpc-url $RPC_URL --account $ACCOUNT --broadcast
 
 # 2. Each EOA delegates to the implementation via EIP-7702 authorization tuple
 
@@ -512,7 +512,7 @@ There is **no explicit destination field**. The `sender` is the account (smart w
 The destination lives inside `callData`, encoded as a function argument:
 
 ```solidity
-userOp.callData = abi.encodeCall(SmartAccount7702.execute, (
+userOp.callData = abi.encodeCall(TSmartAccount7702.execute, (
     0xRecipient,  // ← destination (target)
     1 ether,      // ← value
     ""            // ← call data
@@ -535,10 +535,10 @@ The user (or SDK) encodes the desired function into `userOp.callData`:
 
 ```solidity
 // Single call
-userOp.callData = abi.encodeCall(SmartAccount7702.execute, (target, value, data));
+userOp.callData = abi.encodeCall(TSmartAccount7702.execute, (target, value, data));
 
 // Deterministic contract deployment
-userOp.callData = abi.encodeCall(SmartAccount7702.deployDeterministic, (0, creationCode, salt));
+userOp.callData = abi.encodeCall(TSmartAccount7702.deployDeterministic, (0, creationCode, salt));
 ```
 
 The ABI-encoded bytes resolve to the function selector, and the EVM dispatches to the right function. The `onlyEntryPointOrSelf` modifier passes because `msg.sender == entryPoint()`.

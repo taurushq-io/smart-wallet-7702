@@ -5,13 +5,13 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 
-/// @dev Abstract test base for SmartAccount7702 tests.
+/// @dev Abstract test base for TSmartAccount7702 tests.
 ///      Subclasses must provide the EntryPoint bytecode via `_deployEntryPoint()`.
 ///      This allows running the same tests against different EntryPoint versions.
 abstract contract SmartWalletTestBase is Test {
-    SmartAccount7702 public account;
+    TSmartAccount7702 public account;
     uint256 signerPrivateKey;
     address signer;
     IEntryPoint entryPoint = IEntryPoint(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
@@ -30,13 +30,13 @@ abstract contract SmartWalletTestBase is Test {
         // Deploy EntryPoint at canonical address (version determined by subclass)
         _deployEntryPoint();
 
-        // Simulate EIP-7702 delegation: deploy SmartAccount7702, then etch its runtime
+        // Simulate EIP-7702 delegation: deploy TSmartAccount7702, then etch its runtime
         // bytecode (including immutables) onto the signer's EOA. This makes
         // address(this) == signer when the contract code runs, which is exactly what
         // happens with a real 7702 authorization tuple.
-        SmartAccount7702 impl = new SmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702();
         vm.etch(signer, address(impl).code);
-        account = SmartAccount7702(payable(signer));
+        account = TSmartAccount7702(payable(signer));
         vm.prank(signer);
         account.initialize(address(entryPoint));
     }

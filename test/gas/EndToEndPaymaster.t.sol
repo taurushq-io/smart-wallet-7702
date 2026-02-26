@@ -5,12 +5,12 @@ import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
-import {SmartWalletTestBase} from "../SmartAccount7702/SmartWalletTestBase.sol";
-import {UseEntryPointV09} from "../SmartAccount7702/entrypoint/UseEntryPointV09.sol";
+import {SmartWalletTestBase} from "../TSmartAccount7702/SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "../TSmartAccount7702/entrypoint/UseEntryPointV09.sol";
 
 /// @title EndToEndPaymasterTest
 /// @notice Gas profiling with a paymaster — reflects production costs more accurately
@@ -56,7 +56,7 @@ contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
         uint256 recipientBefore = address(0x1234).balance;
 
         PackedUserOperation memory op = _buildPaymasterOp(
-            abi.encodeCall(SmartAccount7702.execute, (address(0x1234), 1 ether, ""))
+            abi.encodeCall(TSmartAccount7702.execute, (address(0x1234), 1 ether, ""))
         );
 
         bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
@@ -81,7 +81,7 @@ contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
 
         PackedUserOperation memory op = _buildPaymasterOp(
             abi.encodeCall(
-                SmartAccount7702.execute, (address(usdc), 0, abi.encodeCall(usdc.transfer, (address(0x5678), 100e6)))
+                TSmartAccount7702.execute, (address(usdc), 0, abi.encodeCall(usdc.transfer, (address(0x5678), 100e6)))
             )
         );
 

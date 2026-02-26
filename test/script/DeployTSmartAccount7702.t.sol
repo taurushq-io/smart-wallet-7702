@@ -9,20 +9,20 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
-import {DeploySmartAccount7702Script} from "../../script/DeploySmartAccount7702.s.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {DeployTSmartAccount7702Script} from "../../script/DeployTSmartAccount7702.s.sol";
 
-/// @title DeploySmartAccount7702 Script Tests
+/// @title DeployTSmartAccount7702 Script Tests
 /// @notice Verifies the deployment script produces a correctly configured implementation contract.
 contract TestDeployScript is Test {
     /// @dev The salt used in the deployment script, computed on-chain.
     bytes32 constant EXPECTED_SALT = keccak256("TSmart Account 7702 v1");
 
-    SmartAccount7702 implementation;
+    TSmartAccount7702 implementation;
 
     function setUp() public {
         // Deploy using CREATE2 with the same salt as the script
-        implementation = new SmartAccount7702{salt: EXPECTED_SALT}();
+        implementation = new TSmartAccount7702{salt: EXPECTED_SALT}();
     }
 
     // ─── Salt Derivation ─────────────────────────────────────────────
@@ -37,7 +37,7 @@ contract TestDeployScript is Test {
 
     /// @dev Verifies the deployed address matches the CREATE2 prediction.
     function test_deploy_addressIsDeterministic() public view {
-        bytes32 initCodeHash = keccak256(type(SmartAccount7702).creationCode);
+        bytes32 initCodeHash = keccak256(type(TSmartAccount7702).creationCode);
         address predicted = vm.computeCreate2Address(EXPECTED_SALT, initCodeHash, address(this));
         assertEq(address(implementation), predicted, "deployed address must match CREATE2 prediction");
     }
@@ -102,7 +102,7 @@ contract TestDeployScript is Test {
 
     /// @dev Verifies the deploy script runs without reverting.
     function test_script_runsSuccessfully() public {
-        DeploySmartAccount7702Script script = new DeploySmartAccount7702Script();
+        DeployTSmartAccount7702Script script = new DeployTSmartAccount7702Script();
         script.run();
     }
 }

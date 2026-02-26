@@ -16,7 +16,7 @@ import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 /// @title TestFuzz
 ///
-/// @notice Fuzz tests for SmartAccount7702's core signing and execution paths.
+/// @notice Fuzz tests for TSmartAccount7702's core signing and execution paths.
 ///
 /// @dev Covers:
 ///      - validateUserOp: valid signatures, wrong signers, random garbage signatures, prefund amounts

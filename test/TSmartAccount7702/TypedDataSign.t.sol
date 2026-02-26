@@ -3,7 +3,7 @@ pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 
 /// @title TestTypedDataSign
 /// @notice Tests the ERC-7739 TypedDataSign nested signature path for `isValidSignature`.
@@ -146,9 +146,9 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
     function test_typedDataSign_rejectsCrossAccountReplay() public {
         // Setup a second account (Bob)
         address bob = makeAddr("bob");
-        SmartAccount7702 impl2 = new SmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702();
         vm.etch(bob, address(impl2).code);
-        SmartAccount7702 bobAccount = SmartAccount7702(payable(bob));
+        TSmartAccount7702 bobAccount = TSmartAccount7702(payable(bob));
         vm.prank(bob);
         bobAccount.initialize(address(entryPoint));
 

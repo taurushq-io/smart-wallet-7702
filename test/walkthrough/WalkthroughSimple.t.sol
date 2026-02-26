@@ -8,14 +8,14 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 
 /// @title WalkthroughSimpleTest
 ///
-/// @notice Step-by-step walkthrough of the SmartAccount7702 lifecycle — simplified version.
+/// @notice Step-by-step walkthrough of the TSmartAccount7702 lifecycle — simplified version.
 ///         Demonstrates wallet creation and an ERC-20 transfer via ERC-4337 UserOperations
 ///         WITHOUT a paymaster. Gas fees are set to 0 to bypass prefund requirements.
 ///
 /// @dev The flow demonstrated here:
 ///
-///      1. Deploy the EntryPoint singleton and the SmartAccount7702 implementation
-///      2. An EOA delegates its code to SmartAccount7702 via EIP-7702
+///      1. Deploy the EntryPoint singleton and the TSmartAccount7702 implementation
+///      2. An EOA delegates its code to TSmartAccount7702 via EIP-7702
 ///      3. The EOA calls initialize(entryPoint) to configure its trusted EntryPoint
 ///      4. A dApp builds a UserOperation for an ERC-20 transfer (gasFees = 0)
 ///      5. The EOA's private key signs the UserOperation hash

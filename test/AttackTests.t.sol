@@ -7,7 +7,7 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {SmartAccount7702} from "../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../src/TSmartAccount7702.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
@@ -16,11 +16,11 @@ import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 ///      the attacker can call execute() on the victim's wallet because
 ///      onlyEntryPointOrSelf checks msg.sender == entryPoint().
 contract MaliciousEntryPoint {
-    function drainEth(SmartAccount7702 victim, address attacker) external {
+    function drainEth(TSmartAccount7702 victim, address attacker) external {
         victim.execute(attacker, address(victim).balance, "");
     }
 
-    function drainERC20(SmartAccount7702 victim, address token, address attacker) external {
+    function drainERC20(TSmartAccount7702 victim, address token, address attacker) external {
         uint256 balance = MockERC20(token).balanceOf(address(victim));
         victim.execute(
             token,
@@ -32,7 +32,7 @@ contract MaliciousEntryPoint {
 
 /// @title AttackTests
 ///
-/// @notice Adversarial tests against SmartAccount7702. Every test simulates an attack
+/// @notice Adversarial tests against TSmartAccount7702. Every test simulates an attack
 ///         and PASSES if the attack is correctly prevented.
 ///
 /// @dev Attack vectors tested:
@@ -68,7 +68,7 @@ abstract contract AttackTestsBase is Test {
     // -----------------------------------------------------------------------
 
     IEntryPoint entryPoint = IEntryPoint(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
-    SmartAccount7702 smartAccount;
+    TSmartAccount7702 smartAccount;
     MockERC20 usdc;
 
     // -----------------------------------------------------------------------
@@ -85,9 +85,9 @@ abstract contract AttackTestsBase is Test {
 
         _deployEntryPoint();
 
-        SmartAccount7702 impl = new SmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702();
         vm.etch(alice, address(impl).code);
-        smartAccount = SmartAccount7702(payable(alice));
+        smartAccount = TSmartAccount7702(payable(alice));
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
         usdc.mint(alice, 1000e6);
@@ -119,7 +119,7 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker tries to front-run initialize() with their malicious contract
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.initialize(address(malicious));
 
         // Alice's account is still uninitialized — entryPoint is address(0)
@@ -137,7 +137,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.execute(attacker, 1 ether, "");
     }
 
@@ -145,7 +145,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.deployDeterministic(0, hex"60006000", bytes32(0));
     }
 
@@ -163,7 +163,7 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker cannot call execute directly
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.execute(attacker, alice.balance, "");
 
         // Alice's balance unchanged
@@ -184,7 +184,7 @@ abstract contract AttackTestsBase is Test {
         bytes memory transferCall = abi.encodeCall(IERC20.transfer, (attacker, aliceUsdcBefore));
 
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.execute(address(usdc), 0, transferCall);
 
         // Alice's USDC unchanged
@@ -224,7 +224,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         bytes memory callData = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (attacker, 1 ether, "")
         );
 
@@ -265,7 +265,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         bytes memory callData = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (address(0x1234), 0, "")
         );
 
@@ -310,9 +310,9 @@ abstract contract AttackTestsBase is Test {
 
         // Setup Bob's account
         address bob = makeAddr("bob");
-        SmartAccount7702 impl2 = new SmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702();
         vm.etch(bob, address(impl2).code);
-        SmartAccount7702 bobAccount = SmartAccount7702(payable(bob));
+        TSmartAccount7702 bobAccount = TSmartAccount7702(payable(bob));
         vm.prank(bob);
         bobAccount.initialize(address(entryPoint));
 
@@ -358,7 +358,7 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker cannot call execute
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.execute(attacker, 1 ether, "");
 
         // Even a contract at address(0) can't call (impossible in EVM)
@@ -384,7 +384,7 @@ abstract contract AttackTestsBase is Test {
         fakeOp.sender = alice;
 
         vm.prank(attacker);
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         smartAccount.validateUserOp(fakeOp, bytes32(0), 0);
     }
 
@@ -405,7 +405,7 @@ abstract contract AttackTestsBase is Test {
 
         // The attack contract calls smartAccount.initialize(itself)
         // msg.sender = attackContract address, which != address(this) = alice
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         attackContract.attack(smartAccount);
 
         // Alice's account still uninitialized
@@ -423,7 +423,7 @@ contract AttackTests is AttackTestsBase {
 
 /// @dev Helper contract that tries to call initialize() on the victim wallet.
 contract InitializeAttacker {
-    function attack(SmartAccount7702 victim) external {
+    function attack(TSmartAccount7702 victim) external {
         victim.initialize(address(this));
     }
 }

@@ -6,7 +6,7 @@ import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
 /// @title WalkthroughBase
@@ -26,7 +26,7 @@ abstract contract WalkthroughBase is Test {
     uint256 alicePrivateKey;
 
     /// @dev The EOA address derived from the private key.
-    ///      After EIP-7702 delegation, this address has SmartAccount7702 code
+    ///      After EIP-7702 delegation, this address has TSmartAccount7702 code
     ///      but retains its own storage and ETH balance.
     address alice;
 
@@ -45,20 +45,20 @@ abstract contract WalkthroughBase is Test {
     ///      Deployed at the canonical address used by all ERC-4337 accounts.
     IEntryPoint entryPoint = IEntryPoint(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
 
-    /// @dev Alice's smart account — same address as `alice`, just cast to SmartAccount7702.
-    SmartAccount7702 smartAccount;
+    /// @dev Alice's smart account — same address as `alice`, just cast to TSmartAccount7702.
+    TSmartAccount7702 smartAccount;
 
     /// @dev A mock USDC token (6 decimals) used for the transfer demo.
     MockERC20 usdc;
 
-    /// @dev The SmartAccount7702 implementation contract deployed once and shared.
-    SmartAccount7702 implementation;
+    /// @dev The TSmartAccount7702 implementation contract deployed once and shared.
+    TSmartAccount7702 implementation;
 
     // -----------------------------------------------------------------------
     // Shared setup helpers
     // -----------------------------------------------------------------------
 
-    /// @dev Deploys the EntryPoint at its canonical address and the SmartAccount7702 implementation.
+    /// @dev Deploys the EntryPoint at its canonical address and the TSmartAccount7702 implementation.
     function _deployInfrastructure() internal {
         (alice, alicePrivateKey) = makeAddrAndKey("alice");
 
@@ -68,7 +68,7 @@ abstract contract WalkthroughBase is Test {
         vm.etch(address(entryPoint), address(ep).code);
         console2.log("EntryPoint deployed at:", address(entryPoint));
 
-        implementation = new SmartAccount7702();
+        implementation = new TSmartAccount7702();
         console2.log("Implementation deployed at:", address(implementation));
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
@@ -83,8 +83,8 @@ abstract contract WalkthroughBase is Test {
         console2.log("--- STEP 2: EIP-7702 delegation ---");
 
         vm.etch(alice, address(implementation).code);
-        smartAccount = SmartAccount7702(payable(alice));
-        console2.log("Alice's EOA now has SmartAccount7702 code");
+        smartAccount = TSmartAccount7702(payable(alice));
+        console2.log("Alice's EOA now has TSmartAccount7702 code");
         console2.log("Alice's address:", alice);
         console2.log("Has code:", alice.code.length > 0);
     }
@@ -103,7 +103,7 @@ abstract contract WalkthroughBase is Test {
     /// @dev Encodes the callData for an ERC-20 transfer: execute(usdc.transfer(bob, 100 USDC)).
     function _encodeTransferCallData() internal view returns (bytes memory) {
         bytes memory transferCall = abi.encodeCall(usdc.transfer, (bob, 100e6));
-        return abi.encodeCall(SmartAccount7702.execute, (address(usdc), 0, transferCall));
+        return abi.encodeCall(TSmartAccount7702.execute, (address(usdc), 0, transferCall));
     }
 
     /// @dev Signs a UserOperation with Alice's private key. Returns the 65-byte ECDSA signature.

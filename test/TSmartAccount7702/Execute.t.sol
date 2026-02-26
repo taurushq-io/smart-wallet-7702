@@ -4,7 +4,7 @@ pragma solidity ^0.8.33;
 import {MockTarget} from "../mocks/MockTarget.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 
 /// @dev Abstract test logic for execute(). Concrete classes provide the EntryPoint version.
 abstract contract TestExecuteBase is SmartWalletTestBase {
@@ -24,7 +24,7 @@ abstract contract TestExecuteBase is SmartWalletTestBase {
 
         // Random address should be rejected
         vm.prank(makeAddr("random"));
-        vm.expectRevert(SmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
 
         // Reverts from target should bubble up
@@ -41,7 +41,7 @@ abstract contract TestExecuteBase is SmartWalletTestBase {
 
         // Execute through EntryPoint via UserOp
         userOpCalldata =
-            abi.encodeCall(SmartAccount7702.execute, (target, 123, abi.encodeWithSignature("setData(bytes)", data)));
+            abi.encodeCall(TSmartAccount7702.execute, (target, 123, abi.encodeWithSignature("setData(bytes)", data)));
         _sendUserOperation(_getUserOpWithSignature());
 
         assertEq(MockTarget(target).datahash(), keccak256(data));

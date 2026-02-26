@@ -3,13 +3,13 @@ pragma solidity ^0.8.33;
 
 import {Test} from "forge-std/Test.sol";
 
-import {SmartAccount7702} from "../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../src/TSmartAccount7702.sol";
 
 contract ERC1271Test is Test {
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
 
-    SmartAccount7702 account;
+    TSmartAccount7702 account;
     uint256 signerPrivateKey;
     address signer;
 
@@ -17,9 +17,9 @@ contract ERC1271Test is Test {
         (signer, signerPrivateKey) = makeAddrAndKey("alice");
 
         // Simulate EIP-7702 delegation
-        SmartAccount7702 impl = new SmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702();
         vm.etch(signer, address(impl).code);
-        account = SmartAccount7702(payable(signer));
+        account = TSmartAccount7702(payable(signer));
         vm.prank(signer);
         account.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
     }
@@ -47,9 +47,9 @@ contract ERC1271Test is Test {
     function test_isValidSignature_erc7739_rejectsReplay() public {
         // Two different accounts should reject each other's signatures (anti-replay via domain binding)
         address otherSigner = makeAddr("bob");
-        SmartAccount7702 impl2 = new SmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702();
         vm.etch(otherSigner, address(impl2).code);
-        SmartAccount7702 otherAccount = SmartAccount7702(payable(otherSigner));
+        TSmartAccount7702 otherAccount = TSmartAccount7702(payable(otherSigner));
         vm.prank(otherSigner);
         otherAccount.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
 

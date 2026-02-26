@@ -35,7 +35,7 @@ Introducing a named constant is one option, but these are ERC-defined selectors,
 
 The risk of a typo is mitigated by two layers of testing:
 
-1. **`supportsInterface` tests** (`Fuzz.t.sol`, `DeploySmartAccount7702.t.sol`) use `type(IERC721Receiver).interfaceId`, `type(IERC1155Receiver).interfaceId`, `type(IERC1271).interfaceId`, and `type(IERC165).interfaceId` — computed from OpenZeppelin interface definitions. If the source had the wrong value, these tests would fail.
+1. **`supportsInterface` tests** (`Fuzz.t.sol`, `DeployTSmartAccount7702.t.sol`) use `type(IERC721Receiver).interfaceId`, `type(IERC1155Receiver).interfaceId`, `type(IERC1271).interfaceId`, and `type(IERC165).interfaceId` — computed from OpenZeppelin interface definitions. If the source had the wrong value, these tests would fail.
 
 2. **Callback return value tests** (`ERC721Reception.t.sol`, `ERC1155Reception.t.sol`) perform actual token transfers via OpenZeppelin's `safeTransferFrom` and `safeMint`. The OZ token contracts check the callback return value and revert if it doesn't match. A wrong literal in the source would cause these tests to fail.
 

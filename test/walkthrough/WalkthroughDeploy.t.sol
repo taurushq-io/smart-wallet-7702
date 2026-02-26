@@ -4,7 +4,7 @@ pragma solidity ^0.8.33;
 import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {WalkthroughBase} from "./WalkthroughBase.sol";
 
@@ -27,7 +27,7 @@ contract WalkthroughStorage {
 
 /// @title WalkthroughDeployTest
 ///
-/// @notice Walkthrough demonstrating deterministic contract deployment from SmartAccount7702 via UserOperations.
+/// @notice Walkthrough demonstrating deterministic contract deployment from TSmartAccount7702 via UserOperations.
 ///         Shows CREATE2 deployments with a paymaster covering gas.
 ///
 /// @dev The wallet can deploy contracts because it has a native `deployDeterministic()` function that
@@ -86,7 +86,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
         // Encode: smartAccount.deployDeterministic(0, creationCode, salt)
         bytes memory deployCall = abi.encodeCall(
-            SmartAccount7702.deployDeterministic,
+            TSmartAccount7702.deployDeterministic,
             (0, creationCode, salt)
         );
 
@@ -149,7 +149,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         // Pre-compute the deterministic address
         address predicted = computeCreate2Address(salt, keccak256(creationCode), alice);
 
-        bytes memory deployCall = abi.encodeCall(SmartAccount7702.deployDeterministic, (0, creationCode, salt));
+        bytes memory deployCall = abi.encodeCall(TSmartAccount7702.deployDeterministic, (0, creationCode, salt));
         PackedUserOperation memory userOp1 = _buildPaymasterUserOp(deployCall);
         userOp1.signature = _signUserOp(userOp1);
         _submitUserOp(userOp1);
@@ -164,7 +164,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
         bytes memory setValueCall = abi.encodeCall(WalkthroughStorage.setValue, (999));
         bytes memory executeCall = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (deployed, 0, setValueCall)
         );
 

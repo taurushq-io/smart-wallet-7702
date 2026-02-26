@@ -3,7 +3,7 @@ pragma solidity ^0.8.33;
 
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {SmartAccount7702} from "../../src/SmartAccount7702.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC1155} from "../mocks/MockERC1155.sol";
 
 /// @title ERC-1155 token reception tests
@@ -104,7 +104,7 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
         token.mintUnsafe(address(account), 1, 100);
 
         userOpCalldata = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (
                 address(token),
                 0,
@@ -130,7 +130,7 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
         amounts[1] = 100;
 
         userOpCalldata = abi.encodeCall(
-            SmartAccount7702.execute,
+            TSmartAccount7702.execute,
             (
                 address(token),
                 0,

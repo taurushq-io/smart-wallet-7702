@@ -2,6 +2,10 @@
 
 ## [0.3.0] — 2026-02-26
 
+### Changed
+
+- **Contract renamed** from `SmartAccount7702` to `TSmartAccount7702`. The `T` prefix reflects the Taurus organization. All file names, test directories, and script files updated accordingly.
+
 ### Added
 
 - **`version()`**: Returns the contract version string (`"0.3.0"`). Declared `external pure virtual` to allow overrides in derived contracts.
@@ -19,7 +23,7 @@
 
 ## [0.1.0] — 2026-02-17
 
-Initial release of SmartAccount7702 — a minimal ERC-4337 smart account for EIP-7702 delegation.
+Initial release of TSmartAccount7702 — a minimal ERC-4337 smart account for EIP-7702 delegation.
 
 ### Core Contract
 
