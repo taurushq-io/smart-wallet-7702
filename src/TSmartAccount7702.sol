@@ -31,6 +31,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when the account is initialized more than once.
     error AlreadyInitialized();
 
+    /// @notice Thrown when a protected function is called before initialization.
+    error NotInitialized();
+
     /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
@@ -89,7 +92,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
 
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() {
-        if (msg.sender != entryPoint()) revert Unauthorized();
+        EntryPointStorage storage $ = _getEntryPointStorage();
+        if (!$.initialized) revert NotInitialized();
+        if (msg.sender != $.entryPoint) revert Unauthorized();
         _;
     }
 
@@ -98,7 +103,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @dev With EIP-7702, `address(this)` is the EOA. When the EOA sends a normal transaction
     ///      to itself, `msg.sender == address(this)`, allowing direct execution without the EntryPoint.
     modifier onlyEntryPointOrSelf() {
-        if (msg.sender != entryPoint() && msg.sender != address(this)) {
+        EntryPointStorage storage $ = _getEntryPointStorage();
+        if (!$.initialized) revert NotInitialized();
+        if (msg.sender != $.entryPoint && msg.sender != address(this)) {
             revert Unauthorized();
         }
         _;

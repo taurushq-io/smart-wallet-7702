@@ -343,9 +343,8 @@ abstract contract AttackTestsBase is Test {
     // =======================================================================
     //  ATTACK 9: Uninitialized account exploitation
     //
-    //  Before initialize() is called, entryPoint() returns address(0).
-    //  Nobody can send from address(0), so onlyEntryPoint and
-    //  onlyEntryPointOrSelf effectively block all calls except self-calls.
+    //  Before initialize() is called, the wallet should reject all protected
+    //  entry points with NotInitialized().
     //  The account is inert — not exploitable, just non-functional.
     // =======================================================================
 
@@ -357,16 +356,25 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker cannot call execute
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
         smartAccount.execute(attacker, 1 ether, "");
 
-        // Even a contract at address(0) can't call (impossible in EVM)
-        // The only entity that can call is address(this) = alice
-        // This is safe: Alice can still recover by calling initialize on herself
-
-        // Alice CAN call execute on herself (msg.sender == address(this))
+        // The EOA itself also cannot execute until initialize() has completed.
         vm.prank(alice);
+        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
         smartAccount.execute(address(0x1234), 0, "");
+
+        // validateUserOp is also blocked before initialization.
+        PackedUserOperation memory fakeOp;
+        fakeOp.sender = alice;
+        vm.prank(attacker);
+        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
+        smartAccount.validateUserOp(fakeOp, bytes32(0), 0);
+
+        // Alice can still recover by calling initialize on herself.
+        vm.prank(alice);
+        smartAccount.initialize(address(entryPoint));
+        assertEq(smartAccount.entryPoint(), address(entryPoint));
     }
 
     // =======================================================================
