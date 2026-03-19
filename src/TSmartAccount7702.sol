@@ -275,8 +275,8 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     }
 
     /// @dev Executes a call and bubbles up revert data on failure.
-    ///      Uses assembly to forward calldata directly without copying to memory,
-    ///      saving gas on large payloads.
+    ///      Uses assembly to copy calldata into memory and forward it via CALL,
+    ///      avoiding a Solidity ABI-encode round-trip for large payloads.
     function _call(address target, uint256 value, bytes calldata data) internal {
         // Memory-safe: writes beyond the free memory pointer but no Solidity code
         // runs after the assembly block — the function either succeeds silently or reverts.
