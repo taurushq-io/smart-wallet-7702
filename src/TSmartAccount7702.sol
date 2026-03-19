@@ -6,7 +6,6 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
 import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /// @title TSmartAccount7702
 ///
@@ -25,16 +24,18 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 ///      This contract provides `receive()` and `fallback()` functions. This is essential:
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
-contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
+contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized();
+
+    /// @notice Thrown when the account is initialized more than once.
+    error AlreadyInitialized();
 
     /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
     /// @notice Emitted when the account is initialized with an EntryPoint.
-    /// @dev Named `EntryPointSet` (not `Initialized`) to avoid shadowing OZ's
-    ///      `Initializable.Initialized(uint64 version)` which is also emitted during `initialize()`.
+    /// @dev Named `EntryPointSet` to keep the init event domain-specific.
     event EntryPointSet(address indexed entryPoint);
 
     /// @notice Emitted when a contract is deployed via CREATE2.
@@ -43,6 +44,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     /// @custom:storage-location erc7201:smartaccount7702.entrypoint
     struct EntryPointStorage {
         address entryPoint;
+        bool initialized;
     }
 
     /// @dev ERC-7201 namespaced storage slot for `EntryPointStorage`.
@@ -55,16 +57,15 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     bytes32 private constant ENTRY_POINT_STORAGE_LOCATION =
         0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
-    /// @notice Deploys the implementation and disables initialization on it.
+    /// @notice Deploys the implementation.
     /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
     ///      delegating EOAs and work correctly under EIP-7702.
-    ///      `_disableInitializers()` prevents `initialize()` from being called on the implementation
-    ///      contract itself. Each delegating EOA has clean storage and can call `initialize()` once.
+    ///      `initialize()` is still impossible on the implementation itself because the function
+    ///      requires `msg.sender == address(this)`, which can only hold for a self-call from a
+    ///      delegating EOA.
     ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
     ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
-    constructor() EIP712("TSmart Account 7702", "1") {
-        _disableInitializers();
-    }
+    constructor() EIP712("TSmart Account 7702", "1") {}
 
     /// @notice Initializes the account with the trusted EntryPoint address.
     ///
@@ -77,9 +78,12 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount, Initializable {
     ///      (with `to = address(this)`). This makes delegation and initialization atomic.
     ///
     /// @param entryPoint_ The EntryPoint address this account will trust.
-    function initialize(address entryPoint_) external initializer {
+    function initialize(address entryPoint_) external {
         if (msg.sender != address(this)) revert Unauthorized();
-        _getEntryPointStorage().entryPoint = entryPoint_;
+        EntryPointStorage storage $ = _getEntryPointStorage();
+        if ($.initialized) revert AlreadyInitialized();
+        $.initialized = true;
+        $.entryPoint = entryPoint_;
         emit EntryPointSet(entryPoint_);
     }
 

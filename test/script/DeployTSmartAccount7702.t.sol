@@ -2,7 +2,6 @@
 pragma solidity ^0.8.34;
 
 import {Test} from "forge-std/Test.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
@@ -44,10 +43,10 @@ contract TestDeployScript is Test {
 
     // ─── Implementation Locking ──────────────────────────────────────
 
-    /// @dev The implementation contract must have initializers disabled.
-    ///      Calling initialize() on the implementation itself must revert.
-    function test_implementation_initializersDisabled() public {
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
+    /// @dev The implementation contract cannot be initialized because `initialize()`
+    ///      requires `msg.sender == address(this)`, which never holds for an external caller.
+    function test_implementation_initializeReverts() public {
+        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
         implementation.initialize(address(0x1234));
     }
 

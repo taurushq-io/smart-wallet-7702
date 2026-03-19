@@ -6,7 +6,6 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {TSmartAccount7702} from "../src/TSmartAccount7702.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
@@ -196,7 +195,7 @@ abstract contract AttackTestsBase is Test {
     //  ATTACK 5: Re-initialization (change EntryPoint after setup)
     //
     //  Attacker tries to call initialize() again to change the EntryPoint
-    //  to their malicious contract. Blocked by OpenZeppelin Initializable.
+    //  to their malicious contract. Blocked by the wallet's private init flag.
     // =======================================================================
 
     function test_attack_reinitialize_reverts() public {
@@ -206,7 +205,7 @@ abstract contract AttackTestsBase is Test {
 
         // Even the EOA itself cannot re-initialize
         vm.prank(alice);
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        vm.expectRevert(TSmartAccount7702.AlreadyInitialized.selector);
         smartAccount.initialize(address(malicious));
 
         // EntryPoint unchanged
