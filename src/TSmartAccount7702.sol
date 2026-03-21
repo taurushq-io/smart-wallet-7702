@@ -3,6 +3,10 @@ pragma solidity 0.8.34;
 
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
 import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
@@ -26,6 +30,7 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     string private constant VERSION = "0.3.0";
+    bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001;
 
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);
@@ -235,11 +240,11 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      and ERC-165 itself.
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
         return interfaceId == type(IAccount).interfaceId // 0x3a871cdd
-            || interfaceId == bytes4(0x1626ba7e) // ERC-1271
-            || interfaceId == bytes4(0x77390001) // ERC-7739
-            || interfaceId == bytes4(0x150b7a02) // IERC721Receiver
-            || interfaceId == bytes4(0x4e2312e0) // IERC1155Receiver
-            || interfaceId == bytes4(0x01ffc9a7); // ERC-165
+            || interfaceId == type(IERC1271).interfaceId // ERC-1271
+            || interfaceId == ERC7739_INTERFACE_ID // ERC-7739
+            || interfaceId == type(IERC721Receiver).interfaceId // IERC721Receiver
+            || interfaceId == type(IERC1155Receiver).interfaceId // IERC1155Receiver
+            || interfaceId == type(IERC165).interfaceId; // ERC-165
     }
 
     // ─── Token Receiver Callbacks ────────────────────────────────────

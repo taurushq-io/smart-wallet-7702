@@ -27,6 +27,12 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     MockEntryPoint mockEp;
     // Reserved by forge-std console tracing. Calls to this address are decoded as ConsoleCalls.
     address internal constant FORGE_CONSOLE_ADDRESS = 0x000000000000000000636F6e736F6c652e6c6f67;
+    bytes4 internal constant IACCOUNT_INTERFACE_ID = 0x19822f7c;
+    bytes4 internal constant IERC1271_INTERFACE_ID = 0x1626ba7e;
+    bytes4 internal constant ERC7739_INTERFACE_ID = 0x77390001;
+    bytes4 internal constant IERC721RECEIVER_INTERFACE_ID = 0x150b7a02;
+    bytes4 internal constant IERC1155RECEIVER_INTERFACE_ID = 0x4e2312e0;
+    bytes4 internal constant IERC165_INTERFACE_ID = 0x01ffc9a7;
 
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
@@ -217,15 +223,24 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     // =====================================================================
 
     /// @dev Known supported interface IDs must return true.
-    ///      Uses `type(Interface).interfaceId` so the test independently verifies the source values.
+    ///      Uses explicit bytes4 constants and cross-checks them against `type(...).interfaceId`
+    ///      for standard interfaces to avoid mirroring source implementation.
     function test_supportsInterface_knownIds() public view {
+        assertEq(type(IAccount).interfaceId, IACCOUNT_INTERFACE_ID, "IAccount interfaceId mismatch");
+        assertEq(type(IERC1271).interfaceId, IERC1271_INTERFACE_ID, "IERC1271 interfaceId mismatch");
+        assertEq(type(IERC721Receiver).interfaceId, IERC721RECEIVER_INTERFACE_ID, "IERC721Receiver interfaceId mismatch");
+        assertEq(
+            type(IERC1155Receiver).interfaceId, IERC1155RECEIVER_INTERFACE_ID, "IERC1155Receiver interfaceId mismatch"
+        );
+        assertEq(type(IERC165).interfaceId, IERC165_INTERFACE_ID, "IERC165 interfaceId mismatch");
+
         bytes4[6] memory supported = [
-            type(IAccount).interfaceId,
-            type(IERC1271).interfaceId,
-            bytes4(0x77390001), // ERC-7739 (no standard OZ interface)
-            type(IERC721Receiver).interfaceId,
-            type(IERC1155Receiver).interfaceId,
-            type(IERC165).interfaceId
+            IACCOUNT_INTERFACE_ID,
+            IERC1271_INTERFACE_ID,
+            ERC7739_INTERFACE_ID, // ERC-7739 (no standard OZ interface)
+            IERC721RECEIVER_INTERFACE_ID,
+            IERC1155RECEIVER_INTERFACE_ID,
+            IERC165_INTERFACE_ID
         ];
         for (uint256 i; i < supported.length; i++) {
             assertTrue(account.supportsInterface(supported[i]), "known interface should be supported");
@@ -235,12 +250,12 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Random interface IDs (excluding known ones) must return false.
     function testFuzz_supportsInterface_unknownId(bytes4 interfaceId) public view {
         // Exclude all known supported interfaces
-        vm.assume(interfaceId != type(IAccount).interfaceId);
-        vm.assume(interfaceId != type(IERC1271).interfaceId);
-        vm.assume(interfaceId != bytes4(0x77390001)); // ERC-7739 (no standard OZ interface)
-        vm.assume(interfaceId != type(IERC721Receiver).interfaceId);
-        vm.assume(interfaceId != type(IERC1155Receiver).interfaceId);
-        vm.assume(interfaceId != type(IERC165).interfaceId);
+        vm.assume(interfaceId != IACCOUNT_INTERFACE_ID);
+        vm.assume(interfaceId != IERC1271_INTERFACE_ID);
+        vm.assume(interfaceId != ERC7739_INTERFACE_ID); // ERC-7739 (no standard OZ interface)
+        vm.assume(interfaceId != IERC721RECEIVER_INTERFACE_ID);
+        vm.assume(interfaceId != IERC1155RECEIVER_INTERFACE_ID);
+        vm.assume(interfaceId != IERC165_INTERFACE_ID);
 
         assertFalse(account.supportsInterface(interfaceId), "unknown interface should not be supported");
     }

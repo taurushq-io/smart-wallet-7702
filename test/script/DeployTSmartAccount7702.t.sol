@@ -16,6 +16,12 @@ import {DeployTSmartAccount7702Script} from "../../script/DeployTSmartAccount770
 contract TestDeployScript is Test {
     /// @dev The salt used in the deployment script, computed on-chain.
     bytes32 constant EXPECTED_SALT = keccak256("TSmart Account 7702 v1");
+    bytes4 constant IACCOUNT_INTERFACE_ID = 0x19822f7c;
+    bytes4 constant IERC1271_INTERFACE_ID = 0x1626ba7e;
+    bytes4 constant ERC7739_INTERFACE_ID = 0x77390001;
+    bytes4 constant IERC721RECEIVER_INTERFACE_ID = 0x150b7a02;
+    bytes4 constant IERC1155RECEIVER_INTERFACE_ID = 0x4e2312e0;
+    bytes4 constant IERC165_INTERFACE_ID = 0x01ffc9a7;
 
     TSmartAccount7702 implementation;
 
@@ -59,14 +65,23 @@ contract TestDeployScript is Test {
     // ─── Interface Support ───────────────────────────────────────────
 
     /// @dev The implementation must advertise all expected interfaces.
-    ///      Uses `type(Interface).interfaceId` so the test independently verifies the source values.
+    ///      Uses explicit bytes4 constants and cross-checks them against `type(...).interfaceId`
+    ///      for standard interfaces to avoid mirroring source implementation.
     function test_implementation_supportsExpectedInterfaces() public view {
-        assertTrue(implementation.supportsInterface(type(IERC165).interfaceId), "must support ERC-165");
-        assertTrue(implementation.supportsInterface(type(IAccount).interfaceId), "must support IAccount");
-        assertTrue(implementation.supportsInterface(type(IERC1271).interfaceId), "must support ERC-1271");
-        assertTrue(implementation.supportsInterface(bytes4(0x77390001)), "must support ERC-7739"); // no standard OZ interface
-        assertTrue(implementation.supportsInterface(type(IERC721Receiver).interfaceId), "must support IERC721Receiver");
-        assertTrue(implementation.supportsInterface(type(IERC1155Receiver).interfaceId), "must support IERC1155Receiver");
+        assertEq(type(IAccount).interfaceId, IACCOUNT_INTERFACE_ID, "IAccount interfaceId mismatch");
+        assertEq(type(IERC1271).interfaceId, IERC1271_INTERFACE_ID, "IERC1271 interfaceId mismatch");
+        assertEq(type(IERC721Receiver).interfaceId, IERC721RECEIVER_INTERFACE_ID, "IERC721Receiver interfaceId mismatch");
+        assertEq(
+            type(IERC1155Receiver).interfaceId, IERC1155RECEIVER_INTERFACE_ID, "IERC1155Receiver interfaceId mismatch"
+        );
+        assertEq(type(IERC165).interfaceId, IERC165_INTERFACE_ID, "IERC165 interfaceId mismatch");
+
+        assertTrue(implementation.supportsInterface(IERC165_INTERFACE_ID), "must support ERC-165");
+        assertTrue(implementation.supportsInterface(IACCOUNT_INTERFACE_ID), "must support IAccount");
+        assertTrue(implementation.supportsInterface(IERC1271_INTERFACE_ID), "must support ERC-1271");
+        assertTrue(implementation.supportsInterface(ERC7739_INTERFACE_ID), "must support ERC-7739"); // no standard OZ interface
+        assertTrue(implementation.supportsInterface(IERC721RECEIVER_INTERFACE_ID), "must support IERC721Receiver");
+        assertTrue(implementation.supportsInterface(IERC1155RECEIVER_INTERFACE_ID), "must support IERC1155Receiver");
     }
 
     // ─── EIP-712 Domain ──────────────────────────────────────────────
