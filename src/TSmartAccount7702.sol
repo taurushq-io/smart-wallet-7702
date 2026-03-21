@@ -26,7 +26,7 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when the caller is not authorized.
-    error Unauthorized();
+    error Unauthorized(address caller);
 
     /// @notice Thrown when the account is initialized more than once.
     error AlreadyInitialized();
@@ -82,7 +82,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///
     /// @param entryPoint_ The EntryPoint address this account will trust.
     function initialize(address entryPoint_) external {
-        if (msg.sender != address(this)) revert Unauthorized();
+        if (msg.sender != address(this)) revert Unauthorized(msg.sender);
         EntryPointStorage storage $ = _getEntryPointStorage();
         if ($.initialized) revert AlreadyInitialized();
         $.initialized = true;
@@ -94,7 +94,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     modifier onlyEntryPoint() {
         EntryPointStorage storage $ = _getEntryPointStorage();
         if (!$.initialized) revert NotInitialized();
-        if (msg.sender != $.entryPoint) revert Unauthorized();
+        if (msg.sender != $.entryPoint) revert Unauthorized(msg.sender);
         _;
     }
 
@@ -106,7 +106,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         EntryPointStorage storage $ = _getEntryPointStorage();
         if (!$.initialized) revert NotInitialized();
         if (msg.sender != $.entryPoint && msg.sender != address(this)) {
-            revert Unauthorized();
+            revert Unauthorized(msg.sender);
         }
         _;
     }

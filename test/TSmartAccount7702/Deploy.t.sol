@@ -89,9 +89,10 @@ abstract contract TestDeployBase is SmartWalletTestBase {
 
     function test_deployDeterministic_revertsWhenNotAuthorized() public {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(1)));
+        address randomCaller = makeAddr("random");
 
-        vm.prank(makeAddr("random"));
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.prank(randomCaller);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, randomCaller));
         account.deployDeterministic(0, creationCode, bytes32(0));
     }
 

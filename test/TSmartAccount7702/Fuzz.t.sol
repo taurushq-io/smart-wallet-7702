@@ -25,6 +25,8 @@ import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 ///      - supportsInterface: known vs unknown interface IDs
 contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     MockEntryPoint mockEp;
+    // Reserved by forge-std console tracing. Calls to this address are decoded as ConsoleCalls.
+    address internal constant FORGE_CONSOLE_ADDRESS = 0x000000000000000000636F6e736F6c652e6c6f67;
 
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
@@ -175,6 +177,7 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         amount = bound(amount, 0, 100 ether);
         vm.assume(recipient != address(0));
         vm.assume(recipient != address(account));
+        vm.assume(recipient != FORGE_CONSOLE_ADDRESS);
         // Exclude precompiles and system addresses (Prague EVM has precompiles up to 0x0b+)
         vm.assume(uint160(recipient) > 0xff);
         vm.assume(recipient != account.entryPoint());

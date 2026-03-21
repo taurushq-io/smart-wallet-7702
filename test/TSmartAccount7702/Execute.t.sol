@@ -24,8 +24,9 @@ abstract contract TestExecuteBase is SmartWalletTestBase {
         assertEq(target.balance, 123);
 
         // Random address should be rejected
-        vm.prank(makeAddr("random"));
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        address randomCaller = makeAddr("random");
+        vm.prank(randomCaller);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, randomCaller));
         account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
 
         // Reverts from target should bubble up

@@ -47,7 +47,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
         userOp.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(27));
 
         // Calling directly (not from EntryPoint) should revert
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, address(this)));
         account.validateUserOp(userOp, keccak256("123"), 0);
     }
 

@@ -46,7 +46,7 @@ contract TestDeployScript is Test {
     /// @dev The implementation contract cannot be initialized because `initialize()`
     ///      requires `msg.sender == address(this)`, which never holds for an external caller.
     function test_implementation_initializeReverts() public {
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, address(this)));
         implementation.initialize(address(0x1234));
     }
 

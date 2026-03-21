@@ -118,7 +118,7 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker tries to front-run initialize() with their malicious contract
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.initialize(address(malicious));
 
         // Alice's account is still uninitialized — entryPoint is address(0)
@@ -136,7 +136,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.execute(attacker, 1 ether, "");
     }
 
@@ -144,7 +144,7 @@ abstract contract AttackTestsBase is Test {
         _setupInitialized();
 
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.deployDeterministic(0, hex"60006000", bytes32(0));
     }
 
@@ -162,7 +162,7 @@ abstract contract AttackTestsBase is Test {
 
         // Attacker cannot call execute directly
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.execute(attacker, alice.balance, "");
 
         // Alice's balance unchanged
@@ -183,7 +183,7 @@ abstract contract AttackTestsBase is Test {
         bytes memory transferCall = abi.encodeCall(IERC20.transfer, (attacker, aliceUsdcBefore));
 
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.execute(address(usdc), 0, transferCall);
 
         // Alice's USDC unchanged
@@ -391,7 +391,7 @@ abstract contract AttackTestsBase is Test {
         fakeOp.sender = alice;
 
         vm.prank(attacker);
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, attacker));
         smartAccount.validateUserOp(fakeOp, bytes32(0), 0);
     }
 
@@ -412,7 +412,7 @@ abstract contract AttackTestsBase is Test {
 
         // The attack contract calls smartAccount.initialize(itself)
         // msg.sender = attackContract address, which != address(this) = alice
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, address(attackContract)));
         attackContract.attack(smartAccount);
 
         // Alice's account still uninitialized
