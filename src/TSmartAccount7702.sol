@@ -25,6 +25,8 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
+    string private constant VERSION = "0.3.0";
+
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);
 
@@ -212,7 +214,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
 
     /// @notice Returns the contract version string.
     function version() external pure virtual returns (string memory) {
-        return "0.3.0";
+        return VERSION;
     }
 
     /// @notice Returns the address of the trusted EntryPoint.
