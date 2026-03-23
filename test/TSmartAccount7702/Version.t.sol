@@ -6,7 +6,7 @@ import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 abstract contract TestVersionBase is SmartWalletTestBase {
     function test_version() public view {
-        assertEq(account.version(), "0.3.0");
+        assertEq(account.version(), "1.0.0");
     }
 }
 
