@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.34;
+pragma solidity 0.8.34;
 
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
@@ -64,7 +64,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      previously delegated to another implementation that wrote to low slots (0, 1, ...),
     ///      re-delegating to this contract would misinterpret that data as an EntryPoint address.
     ///      The namespaced slot is derived from a unique string, making collision practically impossible.
-    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION =
+    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION = 
         0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
     /// @notice Deploys the implementation.
@@ -169,6 +169,11 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Executes a call from this account.
     ///
     /// @dev Can only be called by the EntryPoint or the account itself (direct EOA transaction).
+    ///
+    ///      Return data from the nested call is intentionally discarded. The EntryPoint does not
+    ///      use the return value of `execute`, and all major ERC-4337 implementations follow the
+    ///      same convention. Callers that require return data in the direct self-call path should
+    ///      override this function (it is `virtual`) or call the target directly.
     ///
     /// @param target The address to call.
     /// @param value  The value to send with the call.
