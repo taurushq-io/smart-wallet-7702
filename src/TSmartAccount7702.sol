@@ -243,8 +243,13 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///
     /// @dev Supports IAccount (ERC-4337), ERC-1271, ERC-7739, token receiver interfaces,
     ///      and ERC-165 itself.
+    ///
+    ///      This contract implements the ERC-4337 v0.8/v0.9 `IAccount` interface, which uses
+    ///      `PackedUserOperation` (interface ID `0x19822f7c`). The legacy v0.6/v0.7 `IAccount`
+    ///      interface, which uses the unpacked `UserOperation` struct (interface ID `0x3a871cdd`),
+    ///      is NOT supported. EntryPoint v0.6 and v0.7 are incompatible with this contract.
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
-        return interfaceId == type(IAccount).interfaceId // 0x3a871cdd
+        return interfaceId == type(IAccount).interfaceId // 0x19822f7c
             || interfaceId == type(IERC1271).interfaceId // ERC-1271
             || interfaceId == ERC7739_INTERFACE_ID // ERC-7739
             || interfaceId == type(IERC721Receiver).interfaceId // IERC721Receiver
