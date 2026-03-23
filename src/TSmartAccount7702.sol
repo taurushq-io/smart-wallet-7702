@@ -99,10 +99,10 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///
     /// @param entryPoint_ The EntryPoint address this account will trust.
     function initialize(address entryPoint_) external {
-        if (msg.sender != address(this)) revert Unauthorized(msg.sender);
-        if (entryPoint_ == address(0)) revert AddressZeroForEntryPointNotAllowed();
+        require(msg.sender == address(this), Unauthorized(msg.sender));
+        require(entryPoint_ != address(0), AddressZeroForEntryPointNotAllowed());
         EntryPointStorage storage $ = _getEntryPointStorage();
-        if ($.initialized) revert AlreadyInitialized();
+        require(!$.initialized, AlreadyInitialized());
         $.initialized = true;
         $.entryPoint = entryPoint_;
         emit EntryPointSet(entryPoint_);
@@ -111,8 +111,8 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() {
         EntryPointStorage storage $ = _getEntryPointStorage();
-        if (!$.initialized) revert NotInitialized();
-        if (msg.sender != $.entryPoint) revert Unauthorized(msg.sender);
+        require($.initialized, NotInitialized());
+        require(msg.sender == $.entryPoint, Unauthorized(msg.sender));
         _;
     }
 
@@ -122,10 +122,8 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      to itself, `msg.sender == address(this)`, allowing direct execution without the EntryPoint.
     modifier onlyEntryPointOrSelf() {
         EntryPointStorage storage $ = _getEntryPointStorage();
-        if (!$.initialized) revert NotInitialized();
-        if (msg.sender != $.entryPoint && msg.sender != address(this)) {
-            revert Unauthorized(msg.sender);
-        }
+        require($.initialized, NotInitialized());
+        require(msg.sender == $.entryPoint || msg.sender == address(this), Unauthorized(msg.sender));
         _;
     }
 
@@ -226,7 +224,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         onlyEntryPointOrSelf
         returns (address deployed)
     {
-        if (creationCode.length == 0) revert EmptyBytecode();
+        require(creationCode.length != 0, EmptyBytecode());
         // Memory-safe: writes beyond the free memory pointer without advancing it.
         // The only Solidity after the assembly is `emit ContractDeployed(deployed)`,
         // which uses only indexed parameters (LOG2 with zero data bytes) and does not
