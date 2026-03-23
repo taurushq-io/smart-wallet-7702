@@ -30,7 +30,7 @@ TSmartAccount7702
   ├── SignerEIP7702 (OZ — _rawSignatureValidation: ecrecover == address(this))
   │     └── AbstractSigner
   ├── IAccount (ERC-4337)
-  └── Initializable (OZ — one-time initialization guard)
+  └── (custom init guard — `initialized` flag in `EntryPointStorage`)
 ```
 
 ### Graphs
@@ -47,7 +47,7 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 | Function | Guard |
 |---|---|
-| `initialize` | `initializer` (once per EOA) |
+| `initialize` | Custom `initialized` flag in `EntryPointStorage` (once per EOA) |
 | `validateUserOp` | `onlyEntryPoint` |
 | `execute` | `onlyEntryPointOrSelf` |
 | `deployDeterministic` | `onlyEntryPointOrSelf` |
@@ -89,7 +89,9 @@ The contract implements all three receiver callbacks:
 
 | Error | Description |
 |---|---|
-| `Unauthorized()` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
+| `Unauthorized(address caller)` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
+| `AlreadyInitialized()` | `initialize()` called on an already-initialized account |
+| `NotInitialized()` | Protected function called before `initialize()` has been called |
 | `EmptyBytecode()` | `deployDeterministic()` called with zero-length creation code |
 
 ### Events
@@ -104,19 +106,22 @@ The contract implements all three receiver callbacks:
 The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
 
 ```
-1. Deploy implementation ──> constructor() calls _disableInitializers()
-                              EIP712 immutables (name, version) baked into bytecode
+1. Deploy implementation ──> constructor() sets EIP712 immutables (name, version) in bytecode
+                              No _disableInitializers() needed — initialize() requires
+                              msg.sender == address(this), which can never hold for
+                              an external caller on the implementation itself.
 
 2. EOA signs EIP-7702 authorization tuple
    ──> EOA's code now points to the implementation bytecode
 
 3. EOA calls initialize(entryPoint) on itself (msg.sender == address(this))
-   ──> entryPoint stored in ERC-7201 namespaced storage (no slot collision risk)
-   ──> initializer modifier prevents re-initialization
+   ──> entryPoint and initialized flag stored in EntryPointStorage
+       under wallet-private ERC-7201 namespace (no slot collision risk)
+   ──> AlreadyInitialized() reverts on any subsequent call
    ──> only the EOA can call initialize (prevents front-running)
 ```
 
-Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The implementation contract itself is locked by `_disableInitializers()` in the constructor.
+Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The `initialized` flag lives in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`), not the shared OZ `Initializable` slot, preventing collisions with prior EOA delegations.
 
 The `entryPoint` address is stored in [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) namespaced storage (slot `0x38a1...7a00`, derived from `"smartaccount7702.entrypoint"`). This prevents slot collisions if an EOA previously delegated to a different implementation that wrote to low slots.
 
@@ -163,9 +168,12 @@ Without access control on `initialize()`, an attacker monitoring the mempool cou
 **Mitigation:** `initialize()` requires `msg.sender == address(this)` — only the EOA itself can call it:
 
 ```solidity
-function initialize(address entryPoint_) external initializer {
-    if (msg.sender != address(this)) revert Unauthorized();
-    _getEntryPointStorage().entryPoint = entryPoint_;
+function initialize(address entryPoint_) external {
+    if (msg.sender != address(this)) revert Unauthorized(msg.sender);
+    EntryPointStorage storage $ = _getEntryPointStorage();
+    if ($.initialized) revert AlreadyInitialized();
+    $.initialized = true;
+    $.entryPoint = entryPoint_;
 }
 ```
 
@@ -195,9 +203,9 @@ Even if the attacker knows the exact calldata needed to drain the account, they 
 
 | Attack | Mitigation | Test |
 |---|---|---|
-| Call `initialize()` again to change EntryPoint | OpenZeppelin `Initializable` reverts on second call | `test_attack_reinitialize_reverts` |
+| Call `initialize()` again to change EntryPoint | Custom `initialized` flag in `EntryPointStorage` reverts with `AlreadyInitialized()` | `test_attack_reinitialize_reverts` |
 
-The `initializer` modifier (from OpenZeppelin) tracks initialization state in ERC-7201 namespaced storage. Once `initialize()` has been called, any subsequent call reverts — even from the EOA itself.
+The `initialized` flag is stored in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`). Once `initialize()` has been called, any subsequent call reverts with `AlreadyInitialized()` — even from the EOA itself.
 
 ### Attack: Signature Attacks
 
@@ -217,9 +225,9 @@ Signature security relies on three layers:
 
 | Attack | Mitigation | Test |
 |---|---|---|
-| Exploit account before `initialize()` is called | `entryPoint()` returns `address(0)`. No real caller can match `address(0)`, so `onlyEntryPoint` blocks everything. `onlyEntryPointOrSelf` only allows the EOA itself. | `test_attack_uninitializedAccount_isInert` |
+| Exploit account before `initialize()` is called | `onlyEntryPoint` and `onlyEntryPointOrSelf` revert with `NotInitialized()` when `initialized == false`. | `test_attack_uninitializedAccount_isInert` |
 
-An uninitialized account is **inert**: it cannot process UserOperations (no EntryPoint) and cannot be called by anyone except the EOA itself. This is a safe default — the account is non-functional but not exploitable.
+An uninitialized account is **inert**: all protected functions revert with `NotInitialized()`. This is a safe default — the account is non-functional but not exploitable.
 
 ### Attack: Initialize via Callback
 
@@ -287,10 +295,10 @@ Each EOA sets its own EntryPoint via `initialize()` after delegation. This allow
 ### initialize
 
 ```solidity
-function initialize(address entryPoint_) external initializer
+function initialize(address entryPoint_) external
 ```
 
-Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. The `initializer` modifier ensures this cannot be called twice on the same EOA. Emits `EntryPointSet(entryPoint)`.
+Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. Reverts with `AlreadyInitialized()` if called a second time. Emits `EntryPointSet(entryPoint)`.
 
 ### validateUserOp
 
@@ -332,7 +340,7 @@ Returns the EntryPoint address configured via `initialize()`.
 
 ## Test Suite
 
-The project has 131 tests across 24 test suites.
+The project has 135 tests across 28 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -470,15 +478,16 @@ cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 
 Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
 
-- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 3 low findings
+- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 2 low findings
 - [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md) — analysis and verdict for each finding
 
 | Finding | Verdict |
 |---|---|
 | **H-1**: Contract locks Ether without a withdraw function | False positive — EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
-| **L-1**: Literal instead of constant (`0x150b7a02`) | Acknowledged — mitigated by tests using `type(Interface).interfaceId` |
-| **L-2**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
-| **L-3**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn limitation) |
+| **L-1**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
+| **L-2**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn tool limitation) |
+
+The previous **L-1 "Literal Instead of Constant"** finding from v0.3.0 is no longer reported — resolved by replacing magic `bytes4` literals in `supportsInterface` with `type(...).interfaceId` expressions (CVF-12).
 
 #### Slither
 
