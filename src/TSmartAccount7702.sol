@@ -141,6 +141,24 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         onlyEntryPoint
         returns (uint256 validationData)
     {
+        // Validate the signature before paying the prefund. Since _rawSignatureValidation
+        // (ecrecover-based) never reverts — it only returns true or false — checking first
+        // avoids sending ETH to the EntryPoint on SIG_VALIDATION_FAILED. On an invalid
+        // signature the EntryPoint retains the prefund to cover the bundler's gas cost, so
+        // skipping the payment saves the account ETH for UserOps that will never execute.
+        //
+        // The ERC-4337 protocol places the responsibility for not submitting failing UserOps
+        // on the bundler and EntryPoint (via simulation), not on the account. The account
+        // should still minimise unnecessary ETH exposure in the validation path.
+        //
+        // Recover signer and verify it's the EOA itself.
+        // _rawSignatureValidation (from SignerEIP7702) returns false on invalid signatures
+        // instead of reverting, which lets us return 1 (SIG_VALIDATION_FAILED) for bundler
+        // simulation support.
+        if (!_rawSignatureValidation(userOpHash, userOp.signature)) {
+            return 1;
+        }
+
         // Pay prefund to the EntryPoint if required. When a paymaster sponsors the UserOp,
         // missingAccountFunds is 0 and this is a no-op. When self-funding, the account
         // sends the required ETH to the EntryPoint (caller).
@@ -153,14 +171,6 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
             assembly ("memory-safe") {
                 pop(call(gas(), caller(), missingAccountFunds, 0x00, 0x00, 0x00, 0x00))
             }
-        }
-
-        // Recover signer and verify it's the EOA itself.
-        // _rawSignatureValidation (from SignerEIP7702) returns false on invalid signatures
-        // instead of reverting, which lets us return 1 (SIG_VALIDATION_FAILED) for bundler
-        // simulation support.
-        if (!_rawSignatureValidation(userOpHash, userOp.signature)) {
-            return 1;
         }
 
         return 0;
