@@ -48,6 +48,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when a protected function is called before initialization.
     error NotInitialized();
 
+    /// @notice Thrown when `address(0)` is passed as the EntryPoint to `initialize()`.
+    error AddressZeroForEntryPointNotAllowed();
+
     /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
@@ -97,6 +100,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @param entryPoint_ The EntryPoint address this account will trust.
     function initialize(address entryPoint_) external {
         if (msg.sender != address(this)) revert Unauthorized(msg.sender);
+        if (entryPoint_ == address(0)) revert AddressZeroForEntryPointNotAllowed();
         EntryPointStorage storage $ = _getEntryPointStorage();
         if ($.initialized) revert AlreadyInitialized();
         $.initialized = true;
