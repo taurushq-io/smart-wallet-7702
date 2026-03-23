@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.34;
+pragma solidity ^0.8.34;
 
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
@@ -64,7 +64,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      previously delegated to another implementation that wrote to low slots (0, 1, ...),
     ///      re-delegating to this contract would misinterpret that data as an EntryPoint address.
     ///      The namespaced slot is derived from a unique string, making collision practically impossible.
-    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION = 
+    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION =
         0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
     /// @notice Deploys the implementation.
