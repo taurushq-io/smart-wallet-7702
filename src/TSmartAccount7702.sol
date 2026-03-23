@@ -300,8 +300,12 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     }
 
     /// @dev Allows the account to receive ETH.
-    receive() external payable {}
+    receive() external payable {
+        // Intentionally empty: ETH accepted unconditionally.
+    }
 
-    /// @dev Allows the account to receive ETH with data and handle unknown function calls.
-    fallback() external payable {}
+    /// @dev Allows the account to receive ETH with data and handles unknown selectors.
+    fallback() external payable {
+        // Intentionally empty: unknown calls accepted to maintain EOA-equivalent behavior.
+    }
 }
