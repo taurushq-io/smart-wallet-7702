@@ -28,6 +28,13 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      This contract provides `receive()` and `fallback()` functions. This is essential:
 ///      with EIP-7702, the EOA has code, so plain ETH transfers require a `receive()` function
 ///      to succeed. Without it, the delegating EOA would be unable to receive ETH.
+///
+///      Re-entrancy protection is provided by access control rather than a `nonReentrant` mutex.
+///      `execute()` and `deployDeterministic()` perform external calls but are gated by
+///      `onlyEntryPointOrSelf`: a re-entrant call from the target would have `msg.sender` equal
+///      to the target address, which is neither the EntryPoint nor `address(this)`, so it reverts.
+///      Future maintainers must preserve this invariant: every state-modifying entry point that
+///      performs external calls must be protected by `onlyEntryPoint` or `onlyEntryPointOrSelf`.
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     string private constant VERSION = "1.0.0";
     bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001;
