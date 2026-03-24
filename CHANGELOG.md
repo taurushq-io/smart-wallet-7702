@@ -43,26 +43,6 @@ forge lint
   - Update surya doc by running the 3 scripts in [./doc/script](./doc/script)
   - Update changelog
 
-## [1.0.1] — 2026-03-24
-
-Post-audit documentation and correctness pass. No functional changes.
-
-### Fixed
-
-- **CVF-12 (follow-up)**: Token receiver callbacks (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`) now return `IERC*Receiver.<selector>` expressions instead of bare `bytes4` literals, making the return value self-documenting and eliminating the risk of a copy-paste mismatch. (`7048e0c`)
-- **ERC-7739 `supportsInterface` cleanup**: Removed `ERC7739_INTERFACE_ID = 0x77390001` and its corresponding entry in `supportsInterface`. ERC-7739 defines no new function signatures, so there is no ERC-165 interface ID to advertise. ERC-7739 support is detected via `isValidSignature(0x7739...7739, "")` returning `0x77390001`, not via ERC-165. (`8eefd50`)
-
-### Documentation
-
-- **Constructor NatSpec**: Added inline explanation of why `_disableInitializers()` is not needed — the `msg.sender == address(this)` guard on `initialize()` makes the bare implementation contract inert to external callers. (`b99881d`)
-- **`doc/DIFFv0.3.0_1.0.0.md`**: Added comprehensive diff document covering all 14 changes between v0.3.0 and v1.0.0, including the one bug fix (wrong `IAccount` interface ID `0x3a871cdd` → `0x19822f7c`). (`ef359ea`)
-
-### Testing
-
-- **Token receiver direct return value tests**: Added `test_onERC721Received_returnsCorrectMagicValue`, `test_onERC1155Received_returnsCorrectMagicValue`, and `test_onERC1155BatchReceived_returnsCorrectMagicValue`. Each asserts the callback return value against the spec-mandated hardcoded constant (independent of the implementation's `.selector` expression). (`7048e0c`)
-
----
-
 ## [1.0.0] — 2026-03-23
 
 ABDK audit remediation release. All Major and Minor findings addressed; two Moderate findings rejected with documented rationale; one Minor finding not implemented due to compiler limitation.
@@ -71,13 +51,17 @@ ABDK audit remediation release. All Major and Minor findings addressed; two Mode
 
 - **CVF-1 (Major)**: Replaced OZ `Initializable` with a wallet-local init guard. The `bool initialized` flag is now co-located in `EntryPointStorage` under the contract's own ERC-7201 namespace (`smartaccount7702.entrypoint`), eliminating any shared-slot collision risk from prior EOA delegations. Added `error AlreadyInitialized()`. Removed `_disableInitializers()` from the constructor — the `msg.sender == address(this)` guard on `initialize()` provides equivalent protection. (`9179aaf`)
 - **CVF-2 (Moderate)**: `onlyEntryPoint` and `onlyEntryPointOrSelf` now revert with `error NotInitialized()` before performing the caller check, giving operators a clear error when the account has not yet been initialized rather than a misleading `Unauthorized()`. (`84c92fa`)
+- **CR-1**: Added `error AddressZeroForEntryPointNotAllowed()` and a zero-address guard in `initialize()` before any state is written. Without this, `initialize(address(0))` would permanently brick ERC-4337 flows with no in-contract remedy. (`ef3fd38`)
+- **CR-6**: Moved signature validation before the `missingAccountFunds` prefund transfer in `validateUserOp()`. Invalid-signature UserOps no longer cause any ETH to leave the account. (`920de4c`)
 
 ### Changed
 
 - **CVF-8**: `error Unauthorized()` → `error Unauthorized(address caller)`. All revert sites pass `msg.sender` as the parameter. (`1c3521c`)
 - **CVF-6**: Pragma relaxed from `0.8.34` to `^0.8.34` to allow patch-level compiler updates while retaining the minimum version required for Prague EVM / EIP-7702 support. (`f4fa540`)
-- **CVF-12**: Magic `bytes4` literals in `supportsInterface` replaced with `type(...).interfaceId` expressions for all standard interfaces. `ERC7739_INTERFACE_ID` named constant added for the draft ERC-7739 interface (no stable Solidity type available). (`5d7232f`)
+- **CVF-12**: Magic `bytes4` literals in `supportsInterface` replaced with `type(...).interfaceId` expressions for all standard interfaces. ERC-7739 was initially included as a named constant but subsequently removed — ERC-7739 defines no new function signatures, so there is no ERC-165 interface ID; detection is via `isValidSignature(0x7739...7739, "")`. (`5d7232f`, `8eefd50`)
+- **CVF-12 (follow-up)**: Token receiver callbacks (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`) now return `.selector` expressions instead of bare `bytes4` literals. (`7048e0c`)
 - **CVF-11**: Inline `"0.3.0"` string in `version()` replaced with `string private constant VERSION`. (`0f863e6`)
+- **Style**: All `if (!condition) revert CustomError()` guards replaced with `require(condition, CustomError())` — identical bytecode, consistent with the OpenZeppelin v5 convention. The `if (!_rawSignatureValidation(...)) return 1` path in `validateUserOp` is intentionally left as `if` (returns a value, not a revert). (`82b698c`)
 - **Version**: Contract version bumped to `"1.0.0"`.
 
 ### Documentation
@@ -85,6 +69,13 @@ ABDK audit remediation release. All Major and Minor findings addressed; two Mode
 - **CVF-3**: Corrected `_call()` NatSpec — calldata is copied into memory via `calldatacopy` before the nested `CALL`; the previous comment incorrectly stated it was forwarded "without copying to memory". (`8a2573c`)
 - **CVF-4**: Added NatSpec to `execute()` documenting that return data from the nested call is intentionally discarded. The EntryPoint does not consume `execute` return values; callers requiring return data in the direct self-call path should override `execute` (declared `virtual`) or call the target directly. (`d5db86b`)
 - **CVF-10**: Added `// Intentionally empty:` inline comments to `receive()` and `fallback()`. (`432a390`)
+- **Constructor NatSpec**: Added explanation of why `_disableInitializers()` is not needed — `initialize()` requires `msg.sender == address(this)`, which can never hold for an external caller on the bare implementation. (`b99881d`)
+- **`doc/DIFFv0.3.0_1.0.0.md`**: Added diff document covering all changes between v0.3.0 and v1.0.0. (`ef359ea`)
+
+### Testing
+
+- **Token receiver direct return value tests**: Added `test_onERC721Received_returnsCorrectMagicValue`, `test_onERC1155Received_returnsCorrectMagicValue`, and `test_onERC1155BatchReceived_returnsCorrectMagicValue` using spec-mandated hardcoded constants as independent verification. (`7048e0c`)
+- **`initialize(address(0))` branch coverage**: Added `test_attack_initializeWithAddressZero_reverts` — verifies revert with `AddressZeroForEntryPointNotAllowed` and that `initialized` remains `false` so the EOA can retry.
 
 ### Not changed
 
