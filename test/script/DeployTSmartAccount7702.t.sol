@@ -18,7 +18,6 @@ contract TestDeployScript is Test {
     bytes32 constant EXPECTED_SALT = keccak256("TSmart Account 7702 v1");
     bytes4 constant IACCOUNT_INTERFACE_ID = 0x19822f7c;
     bytes4 constant IERC1271_INTERFACE_ID = 0x1626ba7e;
-    bytes4 constant ERC7739_INTERFACE_ID = 0x77390001;
     bytes4 constant IERC721RECEIVER_INTERFACE_ID = 0x150b7a02;
     bytes4 constant IERC1155RECEIVER_INTERFACE_ID = 0x4e2312e0;
     bytes4 constant IERC165_INTERFACE_ID = 0x01ffc9a7;
@@ -79,7 +78,7 @@ contract TestDeployScript is Test {
         assertTrue(implementation.supportsInterface(IERC165_INTERFACE_ID), "must support ERC-165");
         assertTrue(implementation.supportsInterface(IACCOUNT_INTERFACE_ID), "must support IAccount");
         assertTrue(implementation.supportsInterface(IERC1271_INTERFACE_ID), "must support ERC-1271");
-        assertTrue(implementation.supportsInterface(ERC7739_INTERFACE_ID), "must support ERC-7739"); // no standard OZ interface
+        // ERC-7739 has no ERC-165 interface ID — detection is via isValidSignature(magic, "") not supportsInterface
         assertTrue(implementation.supportsInterface(IERC721RECEIVER_INTERFACE_ID), "must support IERC721Receiver");
         assertTrue(implementation.supportsInterface(IERC1155RECEIVER_INTERFACE_ID), "must support IERC1155Receiver");
     }

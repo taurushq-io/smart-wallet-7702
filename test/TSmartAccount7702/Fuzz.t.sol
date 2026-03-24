@@ -29,7 +29,6 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     address internal constant FORGE_CONSOLE_ADDRESS = 0x000000000000000000636F6e736F6c652e6c6f67;
     bytes4 internal constant IACCOUNT_INTERFACE_ID = 0x19822f7c;
     bytes4 internal constant IERC1271_INTERFACE_ID = 0x1626ba7e;
-    bytes4 internal constant ERC7739_INTERFACE_ID = 0x77390001;
     bytes4 internal constant IERC721RECEIVER_INTERFACE_ID = 0x150b7a02;
     bytes4 internal constant IERC1155RECEIVER_INTERFACE_ID = 0x4e2312e0;
     bytes4 internal constant IERC165_INTERFACE_ID = 0x01ffc9a7;
@@ -234,10 +233,10 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         );
         assertEq(type(IERC165).interfaceId, IERC165_INTERFACE_ID, "IERC165 interfaceId mismatch");
 
-        bytes4[6] memory supported = [
+        // ERC-7739 has no ERC-165 interface ID — detection is via isValidSignature(magic, "") not supportsInterface
+        bytes4[5] memory supported = [
             IACCOUNT_INTERFACE_ID,
             IERC1271_INTERFACE_ID,
-            ERC7739_INTERFACE_ID, // ERC-7739 (no standard OZ interface)
             IERC721RECEIVER_INTERFACE_ID,
             IERC1155RECEIVER_INTERFACE_ID,
             IERC165_INTERFACE_ID
@@ -252,7 +251,6 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         // Exclude all known supported interfaces
         vm.assume(interfaceId != IACCOUNT_INTERFACE_ID);
         vm.assume(interfaceId != IERC1271_INTERFACE_ID);
-        vm.assume(interfaceId != ERC7739_INTERFACE_ID); // ERC-7739 (no standard OZ interface)
         vm.assume(interfaceId != IERC721RECEIVER_INTERFACE_ID);
         vm.assume(interfaceId != IERC1155RECEIVER_INTERFACE_ID);
         vm.assume(interfaceId != IERC165_INTERFACE_ID);

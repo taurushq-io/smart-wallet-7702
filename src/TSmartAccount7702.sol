@@ -37,7 +37,6 @@ import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/
 ///      performs external calls must be protected by `onlyEntryPoint` or `onlyEntryPointOrSelf`.
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     string private constant VERSION = "1.0.0";
-    bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001;
 
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);
@@ -260,8 +259,12 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
 
     /// @notice ERC-165 interface detection.
     ///
-    /// @dev Supports IAccount (ERC-4337), ERC-1271, ERC-7739, token receiver interfaces,
-    ///      and ERC-165 itself.
+    /// @dev Supports IAccount (ERC-4337), ERC-1271, token receiver interfaces, and ERC-165 itself.
+    ///
+    ///      ERC-7739 is intentionally absent: the standard defines no new function signatures,
+    ///      so there is no ERC-165 interface ID to advertise. ERC-7739 support is detected by
+    ///      calling `isValidSignature(0x7739...7739, "")` and checking for the `0x77390001`
+    ///      return value — not via ERC-165.
     ///
     ///      This contract implements the ERC-4337 v0.8/v0.9 `IAccount` interface, which uses
     ///      `PackedUserOperation` (interface ID `0x19822f7c`). The legacy v0.6/v0.7 `IAccount`
@@ -270,7 +273,6 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     function supportsInterface(bytes4 interfaceId) public view virtual returns (bool) {
         return interfaceId == type(IAccount).interfaceId // 0x19822f7c
             || interfaceId == type(IERC1271).interfaceId // ERC-1271
-            || interfaceId == ERC7739_INTERFACE_ID // ERC-7739
             || interfaceId == type(IERC721Receiver).interfaceId // IERC721Receiver
             || interfaceId == type(IERC1155Receiver).interfaceId // IERC1155Receiver
             || interfaceId == type(IERC165).interfaceId; // ERC-165
