@@ -80,9 +80,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Deploys the implementation.
     /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
     ///      delegating EOAs and work correctly under EIP-7702.
-    ///      `initialize()` is still impossible on the implementation itself because the function
-    ///      requires `msg.sender == address(this)`, which can only hold for a self-call from a
-    ///      delegating EOA.
+    ///      `_disableInitializers()` is not needed: `initialize()` requires
+    ///      `msg.sender == address(this)`, which can never hold for an external caller on the
+    ///      bare implementation contract.
     ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
     ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
     constructor() EIP712("TSmart Account 7702", "1") {}

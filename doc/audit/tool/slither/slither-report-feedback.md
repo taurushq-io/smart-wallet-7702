@@ -5,7 +5,7 @@
 
 This document provides the verdict and analysis for each finding in the current Slither report.
 
-Slither reported **4 informational findings**, all in the same category: **assembly usage**. No high, medium, or low severity issues were found. This result is unchanged from v0.3.0 — only the line numbers have shifted due to code additions since the previous analysis.
+Slither reported **4 informational findings**, all in the same category: **assembly usage**. No high, medium, or low severity issues were found. This result is unchanged from v0.3.0 — only the line numbers have shifted due to code changes since the previous analysis.
 
 ---
 
@@ -25,10 +25,10 @@ No high, medium, or low severity issues detected.
 
 | ID | Function | Lines | Assembly purpose |
 |----|----------|-------|-----------------|
-| ID-0 | `_getEntryPointStorage()` | L236–240 | ERC-7201 namespaced storage slot access |
-| ID-1 | `_call(address,uint256,bytes)` | L292–305 | Low-level CALL with revert data bubbling |
-| ID-2 | `validateUserOp(PackedUserOperation,bytes32,uint256)` | L139–167 | ETH prefund transfer to EntryPoint |
-| ID-3 | `deployDeterministic(uint256,bytes,bytes32)` | L201–223 | CREATE2 contract deployment |
+| ID-0 | `_getEntryPointStorage()` | L255–259 | ERC-7201 namespaced storage slot access |
+| ID-1 | `validateUserOp(PackedUserOperation,bytes32,uint256)` | L148–186 | ETH prefund transfer to EntryPoint |
+| ID-2 | `_call(address,uint256,bytes)` | L316–329 | Low-level CALL with revert data bubbling |
+| ID-3 | `deployDeterministic(uint256,bytes,bytes32)` | L220–242 | CREATE2 contract deployment |
 
 **Verdict: All acknowledged — assembly is intentional and necessary**
 
