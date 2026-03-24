@@ -1,5 +1,68 @@
 # Changelog
 
+## Semantic Version 2.0.0
+
+Given a version number MAJOR.MINOR.PATCH, increment the:
+
+1. MAJOR version when the new version makes:
+   - Incompatible proxy **storage** change internally or through the upgrade of an external library (OpenZeppelin)
+   - A significant change in external APIs (public/external functions) or in the internal architecture
+2. MINOR version when the new version adds functionality in a backward compatible manner
+3. PATCH version when the new version makes backward compatible bug fixes
+
+See [https://semver.org](https://semver.org/)
+
+## Type of changes
+
+- `Added` for new features.
+- `Changed` for changes in existing functionality.
+- `Deprecated` for soon-to-be removed features.
+- `Removed` for now removed features.
+- `Fixed` for any bug fixes.
+- `Security` in case of vulnerabilities.
+
+Reference: [keepachangelog.com/en/1.1.0/](https://keepachangelog.com/en/1.1.0/)
+
+Custom changelog tag: `Dependencies`, `Documentation`, `Testing`
+
+## Checklist
+
+> Before a new release, perform the following tasks
+
+- Code: Update the **version name**, variable VERSION
+- Run formatter and linter
+
+```
+forge fmt
+forge lint
+```
+
+- Documentation
+  - Perform a code coverage and update the files in the corresponding directory [./doc/coverage](./doc/coverage)
+  - Perform an audit with several audit tools (Aderyn and Slither), update the report in the corresponding directory [./doc/audits/tools](./doc/audit/tool)
+  - Update surya doc by running the 3 scripts in [./doc/script](./doc/script)
+  - Update changelog
+
+## [1.0.1] — 2026-03-24
+
+Post-audit documentation and correctness pass. No functional changes.
+
+### Fixed
+
+- **CVF-12 (follow-up)**: Token receiver callbacks (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`) now return `IERC*Receiver.<selector>` expressions instead of bare `bytes4` literals, making the return value self-documenting and eliminating the risk of a copy-paste mismatch. (`7048e0c`)
+- **ERC-7739 `supportsInterface` cleanup**: Removed `ERC7739_INTERFACE_ID = 0x77390001` and its corresponding entry in `supportsInterface`. ERC-7739 defines no new function signatures, so there is no ERC-165 interface ID to advertise. ERC-7739 support is detected via `isValidSignature(0x7739...7739, "")` returning `0x77390001`, not via ERC-165. (`8eefd50`)
+
+### Documentation
+
+- **Constructor NatSpec**: Added inline explanation of why `_disableInitializers()` is not needed — the `msg.sender == address(this)` guard on `initialize()` makes the bare implementation contract inert to external callers. (`b99881d`)
+- **`doc/DIFFv0.3.0_1.0.0.md`**: Added comprehensive diff document covering all 14 changes between v0.3.0 and v1.0.0, including the one bug fix (wrong `IAccount` interface ID `0x3a871cdd` → `0x19822f7c`). (`ef359ea`)
+
+### Testing
+
+- **Token receiver direct return value tests**: Added `test_onERC721Received_returnsCorrectMagicValue`, `test_onERC1155Received_returnsCorrectMagicValue`, and `test_onERC1155BatchReceived_returnsCorrectMagicValue`. Each asserts the callback return value against the spec-mandated hardcoded constant (independent of the implementation's `.selector` expression). (`7048e0c`)
+
+---
+
 ## [1.0.0] — 2026-03-23
 
 ABDK audit remediation release. All Major and Minor findings addressed; two Moderate findings rejected with documented rationale; one Minor finding not implemented due to compiler limitation.

@@ -73,7 +73,7 @@ No change required. The `foundry.toml` specifies `evm_version = "prague"` explic
 ## L-3: Modifier Invoked Only Once
 
 > Consider removing the modifier or inlining the logic into the calling function.
-> Found: `onlyEntryPoint()` modifier (line 112).
+> Found: `onlyEntryPoint()` modifier (line 111).
 
 **Verdict: Acknowledged — intentional design, no change**
 
@@ -91,7 +91,7 @@ The single-use modifier pattern is common in audited smart accounts (Coinbase Sm
 ## L-4: Unused State Variable
 
 > State variable appears to be unused. No analysis has been performed to see if any inline assembly references it.
-> Found: `ENTRY_POINT_STORAGE_LOCATION` (line 77).
+> Found: `ENTRY_POINT_STORAGE_LOCATION` (line 76).
 
 **Verdict: False positive — Aderyn tool limitation**
 
