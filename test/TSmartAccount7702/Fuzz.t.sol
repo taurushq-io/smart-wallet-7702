@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
+import {SimpleStorage} from "../mocks/SimpleStorage.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
-import {MockERC20} from "../mocks/MockERC20.sol";
-import {SimpleStorage} from "../mocks/SimpleStorage.sol";
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 /// @title TestFuzz
 ///
@@ -227,7 +227,9 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     function test_supportsInterface_knownIds() public view {
         assertEq(type(IAccount).interfaceId, IACCOUNT_INTERFACE_ID, "IAccount interfaceId mismatch");
         assertEq(type(IERC1271).interfaceId, IERC1271_INTERFACE_ID, "IERC1271 interfaceId mismatch");
-        assertEq(type(IERC721Receiver).interfaceId, IERC721RECEIVER_INTERFACE_ID, "IERC721Receiver interfaceId mismatch");
+        assertEq(
+            type(IERC721Receiver).interfaceId, IERC721RECEIVER_INTERFACE_ID, "IERC721Receiver interfaceId mismatch"
+        );
         assertEq(
             type(IERC1155Receiver).interfaceId, IERC1155RECEIVER_INTERFACE_ID, "IERC1155Receiver interfaceId mismatch"
         );
@@ -287,22 +289,19 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
             )
         );
 
-        bytes32 contentsHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, address(account), spender, value, nonce, deadline));
+        bytes32 contentsHash = keccak256(abi.encode(PERMIT_TYPEHASH, address(account), spender, value, nonce, deadline));
 
         bytes32 appHash = keccak256(abi.encodePacked("\x19\x01", appDomainSeparator, contentsHash));
 
         string memory contentsDescr =
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)";
 
-        bytes memory domainBytes = abi.encode(
-            keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0)
-        );
+        bytes memory domainBytes =
+            abi.encode(keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0));
 
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
-                "TypedDataSign("
-                "Permit"
+                "TypedDataSign(" "Permit"
                 " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
             )
@@ -314,7 +313,11 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
 
         bytes memory encodedSig = abi.encodePacked(
-            abi.encodePacked(r, s, v), appDomainSeparator, contentsHash, contentsDescr, uint16(bytes(contentsDescr).length)
+            abi.encodePacked(r, s, v),
+            appDomainSeparator,
+            contentsHash,
+            contentsDescr,
+            uint16(bytes(contentsDescr).length)
         );
 
         bytes4 result = account.isValidSignature(appHash, encodedSig);

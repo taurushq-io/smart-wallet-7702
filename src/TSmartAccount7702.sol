@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
+import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {ERC7739} from "@openzeppelin/contracts/utils/cryptography/signers/draft-ERC7739.sol";
-import {SignerEIP7702} from "@openzeppelin/contracts/utils/cryptography/signers/SignerEIP7702.sol";
 
 /// @title TSmartAccount7702
 ///
@@ -196,12 +196,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @param target The address to call.
     /// @param value  The value to send with the call.
     /// @param data   The data of the call.
-    function execute(address target, uint256 value, bytes calldata data)
-        external
-        payable
-        virtual
-        onlyEntryPointOrSelf
-    {
+    function execute(address target, uint256 value, bytes calldata data) external payable virtual onlyEntryPointOrSelf {
         _call(target, value, data);
     }
 
@@ -278,7 +273,8 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
             || interfaceId == type(IERC165).interfaceId; // ERC-165
     }
 
-    // ─── Token Receiver Callbacks ────────────────────────────────────
+    // ─── Token Receiver Callbacks
+    // ────────────────────────────────────
     //
     // Under EIP-7702, the EOA has code, so ERC-721 `safeTransferFrom` and ERC-1155
     // transfers invoke receiver callbacks. Without these, the ABI decoder fails on the

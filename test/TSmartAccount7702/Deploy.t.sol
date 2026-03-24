@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {Test} from "forge-std/Test.sol";
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
+import {Test} from "forge-std/Test.sol";
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {
@@ -16,7 +16,6 @@ contract RevertingConstructor {
 
 /// @dev Abstract test logic for deployDeterministic(). Concrete classes provide the EntryPoint version.
 abstract contract TestDeployBase is SmartWalletTestBase {
-
     function test_deployDeterministic_succeeds() public {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(42)));
         bytes32 salt = bytes32(uint256(0x1234));

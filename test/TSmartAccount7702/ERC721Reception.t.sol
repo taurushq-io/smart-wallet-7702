@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC721} from "../mocks/MockERC721.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 /// @title ERC-721 token reception tests
 /// @dev Verifies the smart wallet can receive and send ERC-721 NFTs.
@@ -22,7 +22,8 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         nft = new MockERC721();
     }
 
-    // ─── Callback return value ───────────────────────────────────────
+    // ─── Callback return value
+    // ───────────────────────────────────────
 
     /// @dev `onERC721Received` must return `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
     ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
@@ -32,7 +33,8 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         assertEq(result, expected);
     }
 
-    // ─── Receiving via _mint (no callback) ───────────────────────────
+    // ─── Receiving via _mint (no callback)
+    // ───────────────────────────
 
     /// @dev `_mint` does NOT call `onERC721Received`, so it should always work.
     function test_receive_mint() public {
@@ -78,7 +80,8 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         assertEq(nft.ownerOf(1), address(account));
     }
 
-    // ─── Receiving via safeMint (with callback) ──────────────────────
+    // ─── Receiving via safeMint (with callback)
+    // ──────────────────────
 
     /// @dev `_safeMint` calls `onERC721Received`. The wallet returns the magic value.
     function test_receive_safeMint() public {
@@ -86,15 +89,15 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         assertEq(nft.ownerOf(1), address(account));
     }
 
-    // ─── Sending via execute() ───────────────────────────────────────
+    // ─── Sending via execute()
+    // ───────────────────────────────────────
 
     /// @dev The wallet can send ERC-721 tokens via `execute()` through the EntryPoint.
     function test_send_transferFrom_viaExecute() public {
         nft.mint(address(account), 1);
 
         userOpCalldata = abi.encodeCall(
-            TSmartAccount7702.execute,
-            (address(nft), 0, abi.encodeCall(nft.transferFrom, (address(account), alice, 1)))
+            TSmartAccount7702.execute, (address(nft), 0, abi.encodeCall(nft.transferFrom, (address(account), alice, 1)))
         );
         _sendUserOperation(_getUserOpWithSignature());
 
@@ -110,9 +113,7 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
             (
                 address(nft),
                 0,
-                abi.encodeWithSignature(
-                    "safeTransferFrom(address,address,uint256)", address(account), alice, 1
-                )
+                abi.encodeWithSignature("safeTransferFrom(address,address,uint256)", address(account), alice, 1)
             )
         );
         _sendUserOperation(_getUserOpWithSignature());

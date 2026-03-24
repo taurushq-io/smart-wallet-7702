@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC1155} from "../mocks/MockERC1155.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 /// @title ERC-1155 token reception tests
 /// @dev Verifies the smart wallet can receive and send ERC-1155 tokens.
@@ -25,18 +25,21 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
         token = new MockERC1155();
     }
 
-    // ─── Callback return values ──────────────────────────────────────
+    // ─── Callback return values
+    // ──────────────────────────────────────
 
-    /// @dev `onERC1155Received` must return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`.
-    ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
+    /// @dev `onERC1155Received` must return
+    /// `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`. Verified against the
+    /// spec-mandated constant, independent of the selector used in the implementation.
     function test_onERC1155Received_returnsCorrectMagicValue() public view {
         bytes4 expected = 0xf23a6e61; // bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))
         bytes4 result = account.onERC1155Received(address(0), address(0), 0, 0, "");
         assertEq(result, expected);
     }
 
-    /// @dev `onERC1155BatchReceived` must return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`.
-    ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
+    /// @dev `onERC1155BatchReceived` must return
+    /// `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`. Verified against the
+    /// spec-mandated constant, independent of the selector used in the implementation.
     function test_onERC1155BatchReceived_returnsCorrectMagicValue() public view {
         bytes4 expected = 0xbc197c81; // bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))
         uint256[] memory ids = new uint256[](0);
@@ -117,7 +120,8 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
         assertEq(token.balanceOf(address(account), 2), 200);
     }
 
-    // ─── Sending via execute() ───────────────────────────────────────
+    // ─── Sending via execute()
+    // ───────────────────────────────────────
 
     /// @dev The wallet can send ERC-1155 tokens via `execute()` through the EntryPoint.
     function test_send_safeTransferFrom_toEOA_viaExecute() public {
@@ -125,11 +129,7 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
 
         userOpCalldata = abi.encodeCall(
             TSmartAccount7702.execute,
-            (
-                address(token),
-                0,
-                abi.encodeCall(token.safeTransferFrom, (address(account), alice, 1, 50, ""))
-            )
+            (address(token), 0, abi.encodeCall(token.safeTransferFrom, (address(account), alice, 1, 50, "")))
         );
         _sendUserOperation(_getUserOpWithSignature());
 

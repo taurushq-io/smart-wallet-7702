@@ -34,8 +34,7 @@ contract ERC7201Calculator {
 
 contract TestStorageLocation is Test {
     /// @dev The hardcoded value from TSmartAccount7702.sol
-    bytes32 internal constant EXPECTED_SLOT =
-        0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
+    bytes32 internal constant EXPECTED_SLOT = 0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
     /// @dev The namespace string used in TSmartAccount7702
     string internal constant NAMESPACE = "smartaccount7702.entrypoint";
@@ -47,9 +46,7 @@ contract TestStorageLocation is Test {
         bytes32 computed = calculator.computeSlot(NAMESPACE);
 
         assertEq(
-            computed,
-            EXPECTED_SLOT,
-            "On-chain ERC-7201 computation must match hardcoded ENTRY_POINT_STORAGE_LOCATION"
+            computed, EXPECTED_SLOT, "On-chain ERC-7201 computation must match hardcoded ENTRY_POINT_STORAGE_LOCATION"
         );
     }
 

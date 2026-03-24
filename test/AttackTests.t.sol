@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {Test} from "forge-std/Test.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {Test} from "forge-std/Test.sol";
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TSmartAccount7702} from "../src/TSmartAccount7702.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 /// @dev Malicious "EntryPoint" that an attacker deploys.
@@ -21,11 +21,7 @@ contract MaliciousEntryPoint {
 
     function drainERC20(TSmartAccount7702 victim, address token, address attacker) external {
         uint256 balance = MockERC20(token).balanceOf(address(victim));
-        victim.execute(
-            token,
-            0,
-            abi.encodeCall(IERC20.transfer, (attacker, balance))
-        );
+        victim.execute(token, 0, abi.encodeCall(IERC20.transfer, (attacker, balance)));
     }
 }
 
@@ -222,10 +218,7 @@ abstract contract AttackTestsBase is Test {
     function test_attack_wrongSignerUserOp_fails() public {
         _setupInitialized();
 
-        bytes memory callData = abi.encodeCall(
-            TSmartAccount7702.execute,
-            (attacker, 1 ether, "")
-        );
+        bytes memory callData = abi.encodeCall(TSmartAccount7702.execute, (attacker, 1 ether, ""));
 
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: alice,
@@ -263,10 +256,7 @@ abstract contract AttackTestsBase is Test {
     function test_attack_replayUserOp_reverts() public {
         _setupInitialized();
 
-        bytes memory callData = abi.encodeCall(
-            TSmartAccount7702.execute,
-            (address(0x1234), 0, "")
-        );
+        bytes memory callData = abi.encodeCall(TSmartAccount7702.execute, (address(0x1234), 0, ""));
 
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: alice,

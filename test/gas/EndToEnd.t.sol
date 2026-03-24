@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 
-import {MockTarget} from "../mocks/MockTarget.sol";
 import {SmartWalletTestBase} from "../TSmartAccount7702/SmartWalletTestBase.sol";
 import {UseEntryPointV09} from "../TSmartAccount7702/entrypoint/UseEntryPointV09.sol";
+import {MockTarget} from "../mocks/MockTarget.sol";
 
 /// @title EndToEndTest
 /// @notice Gas comparison tests between ERC-4337 Base Account and EOA transactions
@@ -30,8 +30,8 @@ contract EndToEndTest is SmartWalletTestBase, UseEntryPointV09 {
 
         // Deploy and mint USDC tokens
         usdc = new MockERC20("USD Coin", "USDC", 6);
-        usdc.mint(address(account), 10000e6);
-        usdc.mint(eoaUser, 10000e6);
+        usdc.mint(address(account), 10_000e6);
+        usdc.mint(eoaUser, 10_000e6);
 
         target = new MockTarget();
     }

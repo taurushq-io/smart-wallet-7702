@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 /// @title TestTypedDataSign
 /// @notice Tests the ERC-7739 TypedDataSign nested signature path for `isValidSignature`.
@@ -58,19 +58,13 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)";
 
         // Account domain bytes (name, version, chainId, verifyingContract, salt)
-        bytes memory domainBytes = abi.encode(
-            keccak256("TSmart Account 7702"),
-            keccak256("1"),
-            block.chainid,
-            address(account),
-            bytes32(0)
-        );
+        bytes memory domainBytes =
+            abi.encode(keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0));
 
         // TypedDataSign typehash
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
-                "TypedDataSign("
-                "Permit"
+                "TypedDataSign(" "Permit"
                 " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
             )
@@ -110,18 +104,12 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
         string memory contentsDescr =
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)";
 
-        bytes memory domainBytes = abi.encode(
-            keccak256("TSmart Account 7702"),
-            keccak256("1"),
-            block.chainid,
-            address(account),
-            bytes32(0)
-        );
+        bytes memory domainBytes =
+            abi.encode(keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0));
 
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
-                "TypedDataSign("
-                "Permit"
+                "TypedDataSign(" "Permit"
                 " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
             )
@@ -176,8 +164,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
 
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
-                "TypedDataSign("
-                "Permit"
+                "TypedDataSign(" "Permit"
                 " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
             )

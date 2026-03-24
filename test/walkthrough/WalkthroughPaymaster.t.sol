@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {WalkthroughBase} from "./WalkthroughBase.sol";
@@ -93,9 +93,9 @@ contract WalkthroughPaymasterTest is WalkthroughBase {
         uint128 paymasterVerificationGas = 200_000;
         uint128 paymasterPostOpGas = 50_000;
         bytes memory paymasterAndData = abi.encodePacked(
-            address(paymaster),       // 20 bytes: paymaster address
+            address(paymaster), // 20 bytes: paymaster address
             paymasterVerificationGas, // 16 bytes: gas for validatePaymasterUserOp
-            paymasterPostOpGas        // 16 bytes: gas for postOp (if context is returned)
+            paymasterPostOpGas // 16 bytes: gas for postOp (if context is returned)
         );
 
         PackedUserOperation memory userOp = PackedUserOperation({
@@ -104,13 +104,13 @@ contract WalkthroughPaymasterTest is WalkthroughBase {
             initCode: "",
             callData: executeCall,
             accountGasLimits: bytes32(
-                uint256(200_000) << 128      // verificationGasLimit
-                | uint256(200_000)           // callGasLimit
+                uint256(200_000) << 128 // verificationGasLimit
+                    | uint256(200_000) // callGasLimit
             ),
             preVerificationGas: 50_000,
             gasFees: bytes32(
-                uint256(1 gwei) << 128       // maxPriorityFeePerGas
-                | uint256(10 gwei)           // maxFeePerGas
+                uint256(1 gwei) << 128 // maxPriorityFeePerGas
+                    | uint256(10 gwei) // maxFeePerGas
             ),
             paymasterAndData: paymasterAndData,
             signature: ""

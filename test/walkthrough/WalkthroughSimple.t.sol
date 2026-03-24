@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {WalkthroughBase} from "./WalkthroughBase.sol";
 
@@ -56,8 +56,8 @@ contract WalkthroughSimpleTest is WalkthroughBase {
             callData: executeCall,
             accountGasLimits: bytes32(uint256(1_000_000) << 128 | uint256(1_000_000)),
             preVerificationGas: 0,
-            gasFees: bytes32(0),             // No gas fees — simplified walkthrough
-            paymasterAndData: "",            // No paymaster in this simplified version
+            gasFees: bytes32(0), // No gas fees — simplified walkthrough
+            paymasterAndData: "", // No paymaster in this simplified version
             signature: ""
         });
 
