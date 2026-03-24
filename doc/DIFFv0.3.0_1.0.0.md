@@ -51,10 +51,11 @@ No functionality was removed. No bugs were introduced. All behavioral changes ar
 ```solidity
 // v1.0.0 only
 string private constant VERSION = "1.0.0";
-bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001;
 ```
 
-`VERSION` replaces the hardcoded `"0.3.0"` string in `version()`. `ERC7739_INTERFACE_ID` replaces the magic literal in `supportsInterface` (CVF-12).
+`VERSION` replaces the hardcoded `"0.3.0"` string in `version()` (CVF-11).
+
+A `bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001` was introduced as part of CVF-12 but subsequently removed: ERC-7739 defines no new function signatures and therefore has no ERC-165 interface ID. The `0x77390001` value is the detection sentinel for `isValidSignature`, not a computed interface ID. It is absent from v1.0.0.
 
 ---
 
@@ -188,9 +189,23 @@ interfaceId == type(IAccount).interfaceId // 0x19822f7c  ← CORRECT
 
 All other interface IDs (`IERC1271`, `IERC721Receiver`, `IERC1155Receiver`, `IERC165`) are now derived via `type(...).interfaceId` instead of hardcoded magic literals (CVF-12). This eliminates the risk of copy-paste errors in future maintenance.
 
+ERC-7739 was also removed from `supportsInterface`: it defines no new function signatures, so there is no ERC-165 interface ID to advertise. ERC-7739 support is detected via `isValidSignature(0x7739...7739, "")` returning `0x77390001`, not via ERC-165.
+
 ---
 
-## 12. `version()` return value
+## 12. Token receiver callbacks — return value expression
+
+| v0.3.0 | v1.0.0 |
+|---|---|
+| `return 0x150b7a02;` | `return IERC721Receiver.onERC721Received.selector;` |
+| `return 0xf23a6e61;` | `return IERC1155Receiver.onERC1155Received.selector;` |
+| `return 0xbc197c81;` | `return IERC1155Receiver.onERC1155BatchReceived.selector;` |
+
+Same class of issue as CVF-12: hardcoded `bytes4` literals replaced with `.selector` expressions so the return value is self-documenting and a copy-paste mismatch becomes a compile-time impossibility. The spec-mandated values (`0x150b7a02`, `0xf23a6e61`, `0xbc197c81`) were verified against the ERC-721 and ERC-1155 specifications. No behavioral change.
+
+---
+
+## 13. `version()` return value
 
 | v0.3.0 | v1.0.0 |
 |---|---|
@@ -198,7 +213,7 @@ All other interface IDs (`IERC1271`, `IERC721Receiver`, `IERC1155Receiver`, `IER
 
 ---
 
-## 13. `deployDeterministic()` empty bytecode check style
+## 14. `deployDeterministic()` empty bytecode check style
 
 | v0.3.0 | v1.0.0 |
 |---|---|
@@ -208,7 +223,7 @@ Identical bytecode output. Style change only (consistent with the rest of the co
 
 ---
 
-## 14. Re-entrancy NatSpec
+## 15. Re-entrancy NatSpec
 
 v1.0.0 adds a contract-level `@dev` paragraph documenting the re-entrancy protection model:
 
