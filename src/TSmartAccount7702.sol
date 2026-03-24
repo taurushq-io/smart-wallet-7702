@@ -291,14 +291,14 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      Accepts tokens from any operator unconditionally. Since this function is `pure`
     ///      (no state reads or writes), there is no re-entrancy vector from the callback.
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
-        return 0x150b7a02;
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /// @dev Accepts ERC-1155 safe transfers. Returns the `onERC1155Received` magic value.
     ///      Accepts tokens from any operator unconditionally. Since this function is `pure`,
     ///      there is no re-entrancy vector from the callback.
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
-        return 0xf23a6e61;
+        return IERC1155Receiver.onERC1155Received.selector;
     }
 
     /// @dev Accepts ERC-1155 safe batch transfers. Returns the `onERC1155BatchReceived` magic value.
@@ -309,7 +309,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         pure
         returns (bytes4)
     {
-        return 0xbc197c81;
+        return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     /// @dev Executes a call and bubbles up revert data on failure.

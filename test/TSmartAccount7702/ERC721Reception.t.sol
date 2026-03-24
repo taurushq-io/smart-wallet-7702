@@ -22,6 +22,16 @@ abstract contract TestERC721ReceptionBase is SmartWalletTestBase {
         nft = new MockERC721();
     }
 
+    // ─── Callback return value ───────────────────────────────────────
+
+    /// @dev `onERC721Received` must return `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`.
+    ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
+    function test_onERC721Received_returnsCorrectMagicValue() public view {
+        bytes4 expected = 0x150b7a02; // bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))
+        bytes4 result = account.onERC721Received(address(0), address(0), 0, "");
+        assertEq(result, expected);
+    }
+
     // ─── Receiving via _mint (no callback) ───────────────────────────
 
     /// @dev `_mint` does NOT call `onERC721Received`, so it should always work.

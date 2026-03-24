@@ -25,6 +25,26 @@ abstract contract TestERC1155ReceptionBase is SmartWalletTestBase {
         token = new MockERC1155();
     }
 
+    // ─── Callback return values ──────────────────────────────────────
+
+    /// @dev `onERC1155Received` must return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`.
+    ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
+    function test_onERC1155Received_returnsCorrectMagicValue() public view {
+        bytes4 expected = 0xf23a6e61; // bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))
+        bytes4 result = account.onERC1155Received(address(0), address(0), 0, 0, "");
+        assertEq(result, expected);
+    }
+
+    /// @dev `onERC1155BatchReceived` must return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`.
+    ///      Verified against the spec-mandated constant, independent of the selector used in the implementation.
+    function test_onERC1155BatchReceived_returnsCorrectMagicValue() public view {
+        bytes4 expected = 0xbc197c81; // bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))
+        uint256[] memory ids = new uint256[](0);
+        uint256[] memory amounts = new uint256[](0);
+        bytes4 result = account.onERC1155BatchReceived(address(0), address(0), ids, amounts, "");
+        assertEq(result, expected);
+    }
+
     // ─── Receiving via _update (no callback, internal only) ──────────
 
     /// @dev `_update` does NOT call acceptance callbacks, so minting via it works.
