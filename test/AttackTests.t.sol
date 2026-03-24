@@ -408,6 +408,32 @@ abstract contract AttackTestsBase is Test {
         // Alice's account still uninitialized
         assertEq(smartAccount.entryPoint(), address(0));
     }
+
+    // =======================================================================
+    //  ATTACK 12: initialize() with address(0) as the EntryPoint
+    //
+    //  The EOA accidentally (or maliciously) calls initialize(address(0)).
+    //  Without a zero-address guard this would set initialized = true and
+    //  entryPoint = address(0), permanently bricking ERC-4337 flows with
+    //  no in-contract remedy.  The guard must revert before writing state,
+    //  leaving the account un-initialized so the EOA can retry.
+    // =======================================================================
+
+    function test_attack_initializeWithAddressZero_reverts() public {
+        _setupUninitialized();
+
+        vm.prank(alice);
+        vm.expectRevert(TSmartAccount7702.AddressZeroForEntryPointNotAllowed.selector);
+        smartAccount.initialize(address(0));
+
+        // initialized flag must remain false — the account can still be initialized correctly
+        assertEq(smartAccount.entryPoint(), address(0));
+
+        // Alice can still recover by calling initialize with a valid address
+        vm.prank(alice);
+        smartAccount.initialize(address(entryPoint));
+        assertEq(smartAccount.entryPoint(), address(entryPoint));
+    }
 }
 
 /// @dev Runs attack tests against EntryPoint v0.9.
