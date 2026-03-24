@@ -58,7 +58,7 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 | Function | Visibility | Mutability | Modifiers |
 |---|---|---|---|
-| `initialize` | External | State-changing | `initializer` |
+| `initialize` | External | State-changing | Custom `initialized` flag |
 | `validateUserOp` | External | State-changing | `onlyEntryPoint` |
 | `execute` | External | Payable | `onlyEntryPointOrSelf` |
 | `deployDeterministic` | External | Payable | `onlyEntryPointOrSelf` |
@@ -92,6 +92,7 @@ The contract implements all three receiver callbacks:
 | `Unauthorized(address caller)` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
 | `AlreadyInitialized()` | `initialize()` called on an already-initialized account |
 | `NotInitialized()` | Protected function called before `initialize()` has been called |
+| `AddressZeroForEntryPointNotAllowed()` | `address(0)` passed as `entryPoint_` to `initialize()` |
 | `EmptyBytecode()` | `deployDeterministic()` called with zero-length creation code |
 
 ### Events
@@ -169,11 +170,13 @@ Without access control on `initialize()`, an attacker monitoring the mempool cou
 
 ```solidity
 function initialize(address entryPoint_) external {
-    if (msg.sender != address(this)) revert Unauthorized(msg.sender);
+    require(msg.sender == address(this), Unauthorized(msg.sender));
+    require(entryPoint_ != address(0), AddressZeroForEntryPointNotAllowed());
     EntryPointStorage storage $ = _getEntryPointStorage();
-    if ($.initialized) revert AlreadyInitialized();
+    require(!$.initialized, AlreadyInitialized());
     $.initialized = true;
     $.entryPoint = entryPoint_;
+    emit EntryPointSet(entryPoint_);
 }
 ```
 
@@ -275,7 +278,7 @@ With EIP-7702, the EOA *is* the wallet. There is no need for:
 
 ### Initializable EntryPoint
 
-Each EOA sets its own EntryPoint via `initialize()` after delegation. This allows different EOAs to target different EntryPoint versions (v0.7, v0.8, v0.9). The implementation constructor disables initialization on itself via `_disableInitializers()`.
+Each EOA sets its own EntryPoint via `initialize()` after delegation. This allows different EOAs to target different EntryPoint versions (v0.7, v0.8, v0.9). Initialization on the implementation contract itself is impossible because `initialize()` requires `msg.sender == address(this)`, which can never hold for an external caller on the implementation.
 
 ## Integration Flow
 
@@ -472,22 +475,26 @@ cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 
 ## Audit
 
+A detailed diff between v0.3.0 and v1.0.0 — covering all behavioral changes, security improvements, and the `supportsInterface` bug fix — is available at [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
+
 ### Tools
 
 #### Aderyn
 
 Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
 
-- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 2 low findings
+- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 4 low findings
 - [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md) — analysis and verdict for each finding
 
 | Finding | Verdict |
 |---|---|
 | **H-1**: Contract locks Ether without a withdraw function | False positive — EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
-| **L-1**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
-| **L-2**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn tool limitation) |
+| **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged — intentional, `^0.8.34` is the CVF-6 fix |
+| **L-2**: PUSH0 Opcode | Not applicable — Prague EVM is required for EIP-7702; PUSH0 is supported |
+| **L-3**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
+| **L-4**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn tool limitation) |
 
-The previous **L-1 "Literal Instead of Constant"** finding from v0.3.0 is no longer reported — resolved by replacing magic `bytes4` literals in `supportsInterface` with `type(...).interfaceId` expressions (CVF-12).
+Compared to v0.3.0: **"Literal Instead of Constant"** is no longer reported (resolved by CVF-12). Two new findings appear — **L-1** and **L-2** are expected consequences of the CVF-6 pragma fix (`^0.8.34`) and the Prague EVM target.
 
 #### Slither
 
