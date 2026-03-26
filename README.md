@@ -4,7 +4,7 @@ A minimal [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) smart account desi
 
 ## Overview
 
-With EIP-7702, an EOA delegates its execution logic to this contract. `address(this)` inside the contract **is** the EOA address, so multi-owner management is unnecessary — the EOA's private key is the sole authority.
+With EIP-7702, an EOA delegates its execution logic to this contract. `address(this)` inside the contract **is** the EOA address, so multi-owner management is unnecessary; the EOA's private key is the sole authority.
 
 The contract supports:
 - ERC-4337 UserOperation validation (signature recovery against `address(this)`)
@@ -41,7 +41,7 @@ TSmartAccount7702
 
 ### EIP-712 Domain
 
-The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`), where the "T" stands for **Taurus** — the organization behind this wallet. This name is baked into bytecode immutables at construction and cannot be changed after deployment. All off-chain signing tools, dApps, and integrators must use this exact string to produce valid ERC-1271 / ERC-7739 signatures. The `eip712Domain()` view function returns the domain parameters for programmatic discovery.
+The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`), where the "T" stands for **Taurus**, the organization behind this wallet. This name is baked into bytecode immutables at construction and cannot be changed after deployment. All off-chain signing tools, dApps, and integrators must use this exact string to produce valid ERC-1271 / ERC-7739 signatures. The `eip712Domain()` view function returns the domain parameters for programmatic discovery.
 
 ### Access Control
 
@@ -73,7 +73,7 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 Under EIP-7702, the EOA has code (`address.code.length > 0`), which means ERC-721 `safeTransferFrom` and all ERC-1155 transfers invoke receiver callbacks on the wallet. Without proper callbacks, the ABI decoder fails on the empty `fallback()` return data and the transfer reverts.
 
-This is especially critical for **ERC-1155**, which has **no** non-safe transfer function — without `onERC1155Received`, the wallet cannot receive any ERC-1155 tokens at all.
+This is especially critical for **ERC-1155**, which has **no** non-safe transfer function. Without `onERC1155Received`, the wallet cannot receive any ERC-1155 tokens at all.
 
 The contract implements all three receiver callbacks:
 
@@ -99,8 +99,8 @@ The contract implements all three receiver callbacks:
 
 | Event | Emitted by |
 |---|---|
-| `EntryPointSet(address indexed entryPoint)` | `initialize()` — logs the EntryPoint address set for this EOA |
-| `ContractDeployed(address indexed deployed)` | `deployDeterministic()` — logs the address of the newly deployed contract |
+| `EntryPointSet(address indexed entryPoint)` | `initialize()`: logs the EntryPoint address set for this EOA |
+| `ContractDeployed(address indexed deployed)` | `deployDeterministic()`: logs the address of the newly deployed contract |
 
 ## Initialization Model
 
@@ -142,7 +142,7 @@ Under EIP-7702, the deployer is `address(this)` = the EOA. So `msg.sender` in th
 
 ### Why CREATE2 only
 
-CREATE2 addresses are fully deterministic — they depend only on the deployer address, salt, and bytecode. This makes them pre-computable and consistent across chains. CREATE addresses depend on the EVM account nonce, which is fragile and hard to track alongside the separate ERC-4337 EntryPoint nonce.
+CREATE2 addresses are fully deterministic: they depend only on the deployer address, salt, and bytecode. This makes them pre-computable and consistent across chains. CREATE addresses depend on the EVM account nonce, which is fragile and hard to track alongside the separate ERC-4337 EntryPoint nonce.
 
 ### Usage Example
 
@@ -166,7 +166,7 @@ This section documents the attack vectors analyzed against TSmartAccount7702 and
 
 Without access control on `initialize()`, an attacker monitoring the mempool could front-run the owner after EIP-7702 delegation and set a malicious contract as the EntryPoint. The attacker's contract would then pass `onlyEntryPointOrSelf` and drain the account.
 
-**Mitigation:** `initialize()` requires `msg.sender == address(this)` — only the EOA itself can call it:
+**Mitigation:** `initialize()` requires `msg.sender == address(this)`, so only the EOA itself can call it:
 
 ```solidity
 function initialize(address entryPoint_) external {
@@ -208,7 +208,7 @@ Even if the attacker knows the exact calldata needed to drain the account, they 
 |---|---|---|
 | Call `initialize()` again to change EntryPoint | Custom `initialized` flag in `EntryPointStorage` reverts with `AlreadyInitialized()` | `test_attack_reinitialize_reverts` |
 
-The `initialized` flag is stored in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`). Once `initialize()` has been called, any subsequent call reverts with `AlreadyInitialized()` — even from the EOA itself.
+The `initialized` flag is stored in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`). Once `initialize()` has been called, any subsequent call reverts with `AlreadyInitialized()`, even from the EOA itself.
 
 ### Attack: Signature Attacks
 
@@ -220,7 +220,7 @@ The `initialized` flag is stored in the wallet's own ERC-7201 namespace (`smarta
 | Call `validateUserOp` directly (not via EntryPoint) | `onlyEntryPoint` modifier reverts | `test_attack_validateUserOpFromNonEntryPoint_reverts` |
 
 Signature security relies on three layers:
-1. **ECDSA recovery**: `ecrecover(hash, sig) == address(this)` — only the EOA's private key can produce valid signatures
+1. **ECDSA recovery**: `ecrecover(hash, sig) == address(this)`, meaning only the EOA's private key can produce valid signatures
 2. **EntryPoint nonce**: Each UserOp must carry a fresh nonce from the EntryPoint's nonce mapping, preventing replay
 3. **ERC-7739 domain binding**: ERC-1271 signatures include the account address in the EIP-712 domain separator, preventing cross-account replay
 
@@ -230,7 +230,7 @@ Signature security relies on three layers:
 |---|---|---|
 | Exploit account before `initialize()` is called | `onlyEntryPoint` and `onlyEntryPointOrSelf` revert with `NotInitialized()` when `initialized == false`. | `test_attack_uninitializedAccount_isInert` |
 
-An uninitialized account is **inert**: all protected functions revert with `NotInitialized()`. This is a safe default — the account is non-functional but not exploitable.
+An uninitialized account is **inert**: all protected functions revert with `NotInitialized()`. This is a safe default; the account is non-functional but not exploitable.
 
 ### Attack: Initialize via Callback
 
@@ -246,7 +246,7 @@ These risks are inherent to the EIP-7702 model and cannot be mitigated at the sm
 
 | Risk | Description |
 |---|---|
-| **Private key compromise** | If the EOA's private key is stolen, the attacker has full control. There is no multi-sig, guardian, or social recovery — by design, the EOA key is the sole authority. |
+| **Private key compromise** | If the EOA's private key is stolen, the attacker has full control. There is no multi-sig, guardian, or social recovery. By design, the EOA key is the sole authority. |
 | **Re-delegation to malicious implementation** | The EOA can re-delegate to any contract via EIP-7702. If the owner is tricked into signing an authorization tuple pointing to a malicious implementation, the new code could drain the account. |
 
 ## Design Decisions
@@ -313,7 +313,7 @@ function validateUserOp(
 ) external onlyEntryPoint returns (uint256 validationData)
 ```
 
-Validates the UserOperation signature. Returns `0` on success, `1` on signature failure (to support simulation). The signature should be a raw ECDSA signature (`abi.encodePacked(r, s, v)`) — no wrapper struct. If `missingAccountFunds > 0` (no paymaster), the account pays the required prefund to the EntryPoint from its ETH balance.
+Validates the UserOperation signature. Returns `0` on success, `1` on signature failure (to support simulation). The signature should be a raw ECDSA signature (`abi.encodePacked(r, s, v)`), with no wrapper struct. If `missingAccountFunds > 0` (no paymaster), the account pays the required prefund to the EntryPoint from its ETH balance.
 
 ### execute
 
@@ -349,8 +349,8 @@ The project has 135 tests across 28 test suites.
 
 All tests that route UserOperations through the real EntryPoint are run against **two versions**:
 
-- **EntryPoint v0.9.0** — the latest canonical release
-- **EntryPoint v0.8.0** — the previous stable release
+- **EntryPoint v0.9.0**: the latest canonical release
+- **EntryPoint v0.8.0**: the previous stable release
 
 This ensures the smart account is compatible with both versions. Test logic is extracted into abstract contracts, and two concrete classes (V09, V08) inherit the same tests with different EntryPoint implementations via `UseEntryPointV09` / `UseEntryPointV08` mixins.
 
@@ -379,7 +379,7 @@ forge test --match-path "test/TSmartAccount7702/*.t.sol"
 
 ### Walkthrough Tests (`test/walkthrough/`)
 
-Step-by-step tests designed to be read as documentation. Each test logs every step with `console2.log` — run with `forge test -vvv` to see the full narrative.
+Step-by-step tests designed to be read as documentation. Each test logs every step with `console2.log`; run with `forge test -vvv` to see the full narrative.
 
 | Test | Description |
 |---|---|
@@ -475,7 +475,7 @@ cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
 
 ## Audit
 
-A detailed diff between v0.3.0 and v1.0.0 — covering all behavioral changes, security improvements, and the `supportsInterface` bug fix — is available at [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
+A detailed diff between v0.3.0 and v1.0.0, covering all behavioral changes, security improvements, and the `supportsInterface` bug fix, is available at [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
 
 ### Tools
 
@@ -483,29 +483,29 @@ A detailed diff between v0.3.0 and v1.0.0 — covering all behavioral changes, s
 
 Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
 
-- [Raw report](doc/audit/tool/aderyn/aderyn-report.md) — 1 high, 4 low findings
-- [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md) — analysis and verdict for each finding
+- [Raw report](doc/audit/tool/aderyn/aderyn-report.md): 1 high, 4 low findings
+- [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md): analysis and verdict for each finding
 
 | Finding | Verdict |
 |---|---|
-| **H-1**: Contract locks Ether without a withdraw function | False positive — EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
-| **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged — intentional, `^0.8.34` is the CVF-6 fix |
-| **L-2**: PUSH0 Opcode | Not applicable — Prague EVM is required for EIP-7702; PUSH0 is supported |
-| **L-3**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged — intentional separation from `onlyEntryPointOrSelf` |
-| **L-4**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive — used in inline assembly (Aderyn tool limitation) |
+| **H-1**: Contract locks Ether without a withdraw function | False positive: EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
+| **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged: intentional, `^0.8.34` is the CVF-6 fix |
+| **L-2**: PUSH0 Opcode | Not applicable: Prague EVM is required for EIP-7702; PUSH0 is supported |
+| **L-3**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional separation from `onlyEntryPointOrSelf` |
+| **L-4**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive: used in inline assembly (Aderyn tool limitation) |
 
-Compared to v0.3.0: **"Literal Instead of Constant"** is no longer reported (resolved by CVF-12). Two new findings appear — **L-1** and **L-2** are expected consequences of the CVF-6 pragma fix (`^0.8.34`) and the Prague EVM target.
+Compared to v0.3.0: **"Literal Instead of Constant"** is no longer reported (resolved by CVF-12). Two new findings appear: **L-1** and **L-2** are expected consequences of the CVF-6 pragma fix (`^0.8.34`) and the Prague EVM target.
 
 #### Slither
 
 Static analysis was also performed using [Slither](https://github.com/crytic/slither), a Python-based Solidity and Vyper static analysis framework by Trail of Bits.
 
-- [Raw report](doc/audit/tool/slither/slither-report.md) — 0 high/medium/low, 4 informational
-- [Feedback](doc/audit/tool/slither/slither-report-feedback.md) — analysis for each finding
+- [Raw report](doc/audit/tool/slither/slither-report.md): 0 high/medium/low, 4 informational
+- [Feedback](doc/audit/tool/slither/slither-report-feedback.md): analysis for each finding
 
 | Finding | Count | Verdict |
 |---|---|---|
-| **Assembly usage** (Informational) | 4 instances | Acknowledged — all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deployDeterministic` (CREATE2) |
+| **Assembly usage** (Informational) | 4 instances | Acknowledged: all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deployDeterministic` (CREATE2) |
 
 No high, medium, or low severity issues were detected.
 
@@ -515,23 +515,23 @@ No high, medium, or low severity issues were detected.
 
 ERC-4337 defines an optional `IAccountExecute` interface where the EntryPoint calls `account.executeUserOp(userOp, userOpHash)` instead of `account.call(userOp.callData)`. This wallet uses direct `callData` dispatch instead for three reasons:
 
-1. **It does not eliminate existing functions.** `executeUserOp` is only called by the EntryPoint. For direct EOA transactions (`msg.sender == address(this)`), `deployDeterministic` is still needed because regular transactions use the CALL opcode — CREATE2 requires contract code execution. Adopting `executeUserOp` would add a function while still keeping `deployDeterministic`.
+1. **It does not eliminate existing functions.** `executeUserOp` is only called by the EntryPoint. For direct EOA transactions (`msg.sender == address(this)`), `deployDeterministic` is still needed because regular transactions use the CALL opcode; CREATE2 requires contract code execution. Adopting `executeUserOp` would add a function while still keeping `deployDeterministic`.
 
-2. **Extra indirection with no benefit.** This wallet does not need UserOp fields at execution time — it only needs the target, value, and data, which are already encoded in `callData`. Most `executeUserOp` implementations end up doing `address(this).call(userOp.callData[4:])`, adding a call frame and gas overhead for nothing.
+2. **Extra indirection with no benefit.** This wallet does not need UserOp fields at execution time; it only needs the target, value, and data, which are already encoded in `callData`. Most `executeUserOp` implementations end up doing `address(this).call(userOp.callData[4:])`, adding a call frame and gas overhead for nothing.
 
 3. **It is designed for more complex accounts.** `executeUserOp` is useful for session keys (enforcing gas/spending caps from UserOp parameters), spending policies (inspecting paymaster data), ERC-7579 modular accounts, or custom callData encodings. None of these apply to a minimal single-owner wallet.
 
 | Aspect | Direct `callData` (current) | `executeUserOp` |
 |---|---|---|
 | EntryPoint calls | `account.call(userOp.callData)` | `account.executeUserOp(userOp, hash)` |
-| Simplicity | Simple — function called directly | Must parse `callData` internally |
+| Simplicity | Simple: function called directly | Must parse `callData` internally |
 | Gas | No overhead | Extra call frame + calldata copying |
 | UserOp access at execution | Not available | Full UserOp + hash available |
 | Use case fit | Minimal single-owner wallet | Modular accounts, session keys |
 
 ### Where is the destination in a `PackedUserOperation`?
 
-There is **no explicit destination field**. The `sender` is the account (smart wallet), not the call target. There is no `to` field.
+There is **no explicit destination field**. The `sender` is the account (smart wallet), not the call target, and there is no `to` field.
 
 The destination lives inside `callData`, encoded as a function argument:
 
@@ -543,7 +543,7 @@ userOp.callData = abi.encodeCall(TSmartAccount7702.execute, (
 ));
 ```
 
-This is by design in ERC-4337: the EntryPoint only knows about the account (`sender`). How the account interprets `callData` — including which contract to call — is entirely up to the account's implementation.
+This is by design in ERC-4337: the EntryPoint only knows about the account (`sender`). How the account interprets `callData`, including which contract to call, is entirely up to the account's implementation.
 
 ### How does the EntryPoint call `execute`?
 
