@@ -68,7 +68,7 @@ abstract contract WalkthroughBase is Test {
         vm.etch(address(entryPoint), address(ep).code);
         console2.log("EntryPoint deployed at:", address(entryPoint));
 
-        implementation = new TSmartAccount7702();
+        implementation = new TSmartAccount7702(address(entryPoint));
         console2.log("Implementation deployed at:", address(implementation));
 
         usdc = new MockERC20("USD Coin", "USDC", 6);

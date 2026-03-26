@@ -26,7 +26,7 @@ contract TestDeployScript is Test {
 
     function setUp() public {
         // Deploy using CREATE2 with the same salt as the script
-        implementation = new TSmartAccount7702{salt: EXPECTED_SALT}();
+        implementation = new TSmartAccount7702{salt: EXPECTED_SALT}(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
     }
 
     // ─── Salt Derivation
@@ -42,16 +42,21 @@ contract TestDeployScript is Test {
     // ───────────────────────────────────────
 
     /// @dev Verifies the deployed address matches the CREATE2 prediction.
+    ///      The init code includes both the creation bytecode and the ABI-encoded constructor argument.
     function test_deploy_addressIsDeterministic() public view {
-        bytes32 initCodeHash = keccak256(type(TSmartAccount7702).creationCode);
+        bytes memory initCode = abi.encodePacked(
+            type(TSmartAccount7702).creationCode,
+            abi.encode(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108))
+        );
+        bytes32 initCodeHash = keccak256(initCode);
         address predicted = vm.computeCreate2Address(EXPECTED_SALT, initCodeHash, address(this));
         assertEq(address(implementation), predicted, "deployed address must match CREATE2 prediction");
     }
 
-    // ─── EntryPoint Constant
+    // ─── EntryPoint Immutable
     // ──────────────────────────────────────
 
-    /// @dev entryPoint() must return the hardcoded v0.8.0 canonical address.
+    /// @dev entryPoint() must return the address passed to the constructor.
     function test_implementation_entryPointIsConstant() public view {
         assertEq(
             implementation.entryPoint(),

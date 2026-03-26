@@ -61,7 +61,7 @@ abstract contract AttackTestsBase is Test {
 
         _deployEntryPoint();
 
-        TSmartAccount7702 impl = new TSmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702(address(entryPoint));
         vm.etch(alice, address(impl).code);
         smartAccount = TSmartAccount7702(payable(alice));
 
@@ -227,7 +227,7 @@ abstract contract AttackTestsBase is Test {
 
         // Setup Bob's account
         address bob = makeAddr("bob");
-        TSmartAccount7702 impl2 = new TSmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702(address(entryPoint));
         vm.etch(bob, address(impl2).code);
         TSmartAccount7702 bobAccount = TSmartAccount7702(payable(bob));
 

@@ -134,7 +134,7 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
     function test_typedDataSign_rejectsCrossAccountReplay() public {
         // Setup a second account (Bob)
         address bob = makeAddr("bob");
-        TSmartAccount7702 impl2 = new TSmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702(address(entryPoint));
         vm.etch(bob, address(impl2).code);
         TSmartAccount7702 bobAccount = TSmartAccount7702(payable(bob));
 

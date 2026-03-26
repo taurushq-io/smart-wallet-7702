@@ -38,16 +38,18 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     string private constant VERSION = "1.0.0";
 
-    /// @notice The canonical ERC-4337 EntryPoint v0.8.0 address.
+    /// @notice The trusted ERC-4337 EntryPoint address, set once at deployment.
     ///
-    /// @dev Hardcoded as an immutable constant — no initialization required.
+    /// @dev Stored as an immutable — baked into the bytecode at construction time and
+    ///      shared by all EOAs that delegate to this implementation via EIP-7702.
     ///      This eliminates the front-running attack surface that existed with a mutable
-    ///      EntryPoint: since the EntryPoint is fixed at compile time, there is no window
+    ///      EntryPoint: since the EntryPoint is fixed at deployment, there is no window
     ///      in which an attacker could set a malicious EntryPoint before the account owner.
     ///
-    ///      To support a different EntryPoint (e.g. v0.9.0), deploy a subclass that overrides
-    ///      `entryPoint()` to return the desired address.
-    address public constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+    ///      To target a different EntryPoint version, deploy a new implementation with the
+    ///      desired address. All delegating EOAs re-point automatically by signing a new
+    ///      EIP-7702 authorization tuple.
+    address public immutable ENTRY_POINT;
 
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);
@@ -58,16 +60,24 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Emitted when a contract is deployed via CREATE2.
     event ContractDeployed(address indexed deployed);
 
-    /// @notice Deploys the implementation.
-    /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
+    /// @notice Deploys the implementation with a fixed EntryPoint.
+    ///
+    /// @dev `EIP712` and `ENTRY_POINT` set immutables in bytecode — these are shared by all
     ///      delegating EOAs and work correctly under EIP-7702.
     ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
     ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
-    constructor() EIP712("TSmart Account 7702", "1") {}
+    ///
+    /// @param entryPoint_ The EntryPoint address this implementation will trust.
+    ///                    Must not be the zero address — passing address(0) permanently bricks
+    ///                    the account since no caller can ever satisfy `msg.sender == address(0)`.
+    constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
+        require(entryPoint_ != address(0));
+        ENTRY_POINT = entryPoint_;
+    }
 
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() {
-        require(msg.sender == entryPoint(), Unauthorized(msg.sender));
+        require(msg.sender == ENTRY_POINT, Unauthorized(msg.sender));
         _;
     }
 
@@ -76,7 +86,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @dev With EIP-7702, `address(this)` is the EOA. When the EOA sends a normal transaction
     ///      to itself, `msg.sender == address(this)`, allowing direct execution without the EntryPoint.
     modifier onlyEntryPointOrSelf() {
-        require(msg.sender == entryPoint() || msg.sender == address(this), Unauthorized(msg.sender));
+        require(msg.sender == ENTRY_POINT || msg.sender == address(this), Unauthorized(msg.sender));
         _;
     }
 
@@ -195,9 +205,6 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     }
 
     /// @notice Returns the address of the trusted EntryPoint.
-    ///
-    /// @dev Virtual to allow subclasses to override for a different EntryPoint version.
-    ///      The base implementation returns the hardcoded v0.8.0 canonical address.
     function entryPoint() public view virtual returns (address) {
         return ENTRY_POINT;
     }
