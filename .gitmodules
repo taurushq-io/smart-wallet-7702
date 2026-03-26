@@ -10,3 +10,9 @@
 [submodule "lib/account-abstraction-v0.8"]
 	path = lib/account-abstraction-v0.8
 	url = https://github.com/eth-infinitism/account-abstraction
+[submodule "buidl-wallet-contracts"]
+	path = buidl-wallet-contracts
+	url = https://github.com/circlefin/buidl-wallet-contracts/
+[submodule "openzeppelin-contracts-upgradeable"]
+	path = openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
