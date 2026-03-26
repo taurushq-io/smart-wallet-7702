@@ -16,7 +16,7 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 /// @notice Minimal ERC-4337 smart account designed for EIP-7702 delegation.
 ///
 /// @dev With EIP-7702, an EOA delegates its code to this contract. `address(this)` is the EOA
-///      itself, so owner management is unnecessary — the EOA's private key is the sole authority.
+///      itself, so owner management is unnecessary. The EOA's private key is the sole authority.
 ///
 ///      The account supports both paymaster-sponsored and self-funded UserOperations.
 ///      When a paymaster is present, `missingAccountFunds` is 0 and no ETH is needed.
@@ -40,11 +40,8 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
 
     /// @notice The trusted ERC-4337 EntryPoint address, set once at deployment.
     ///
-    /// @dev Stored as an immutable — baked into the bytecode at construction time and
+    /// @dev Stored as an immutable baked into the bytecode at construction time,
     ///      shared by all EOAs that delegate to this implementation via EIP-7702.
-    ///      This eliminates the front-running attack surface that existed with a mutable
-    ///      EntryPoint: since the EntryPoint is fixed at deployment, there is no window
-    ///      in which an attacker could set a malicious EntryPoint before the account owner.
     ///
     ///      To target a different EntryPoint version, deploy a new implementation with the
     ///      desired address. All delegating EOAs re-point automatically by signing a new
@@ -62,13 +59,13 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
 
     /// @notice Deploys the implementation with a fixed EntryPoint.
     ///
-    /// @dev `EIP712` and `ENTRY_POINT` set immutables in bytecode — these are shared by all
+    /// @dev `EIP712` and `ENTRY_POINT` set immutables in bytecode. Both are shared by all
     ///      delegating EOAs and work correctly under EIP-7702.
     ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
-    ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
+    ///      This name is immutable once deployed. All off-chain signing tools must use it exactly.
     ///
     /// @param entryPoint_ The EntryPoint address this implementation will trust.
-    ///                    Must not be the zero address — passing address(0) permanently bricks
+    ///                    Must not be the zero address. Passing address(0) permanently bricks
     ///                    the account since no caller can ever satisfy `msg.sender == address(0)`.
     constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
         require(entryPoint_ != address(0));
@@ -114,7 +111,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         returns (uint256 validationData)
     {
         // Validate the signature before paying the prefund. Since _rawSignatureValidation
-        // (ecrecover-based) never reverts — it only returns true or false — checking first
+        // (ecrecover-based) never reverts (it only returns true or false), so checking first
         // avoids sending ETH to the EntryPoint on SIG_VALIDATION_FAILED. On an invalid
         // signature the EntryPoint retains the prefund to cover the bundler's gas cost, so
         // skipping the payment saves the account ETH for UserOps that will never execute.
@@ -138,7 +135,6 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
         // The call's return value is intentionally discarded (`pop`). If the transfer fails
         // (e.g. insufficient balance), the EntryPoint is trusted to catch the shortfall in
         // its own post-validation balance accounting and revert the entire UserOp.
-        // This is the standard ERC-4337 prefund pattern (used by Coinbase, Solady, etc.).
         if (missingAccountFunds > 0) {
             assembly ("memory-safe") {
                 pop(call(gas(), caller(), missingAccountFunds, 0x00, 0x00, 0x00, 0x00))
@@ -216,7 +212,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      ERC-7739 is intentionally absent: the standard defines no new function signatures,
     ///      so there is no ERC-165 interface ID to advertise. ERC-7739 support is detected by
     ///      calling `isValidSignature(0x7739...7739, "")` and checking for the `0x77390001`
-    ///      return value — not via ERC-165.
+    ///      return value, not via ERC-165.
     ///
     ///      This contract implements the ERC-4337 v0.8/v0.9 `IAccount` interface, which uses
     ///      `PackedUserOperation` (interface ID `0x19822f7c`). The legacy v0.6/v0.7 `IAccount`
@@ -270,7 +266,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      avoiding a Solidity ABI-encode round-trip for large payloads.
     function _call(address target, uint256 value, bytes calldata data) internal {
         // Memory-safe: writes beyond the free memory pointer but no Solidity code
-        // runs after the assembly block — the function either succeeds silently or reverts.
+        // runs after the assembly block. The function either succeeds silently or reverts.
         // Skipping `mstore(0x40, ...)` saves gas.
         assembly ("memory-safe") {
             let m := mload(0x40)
