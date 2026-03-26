@@ -11,7 +11,6 @@ The contract supports:
 - Single-call execution (`execute`)
 - Deterministic contract deployment via CREATE2 (`deployDeterministic`)
 - ERC-1271 signature validation with ERC-7739 anti-replay protection
-- Per-EOA EntryPoint configuration via `initialize()`
 - ERC-721 and ERC-1155 token reception (`onERC721Received`, `onERC1155Received`, `onERC1155BatchReceived`)
 - ETH receiving (`receive`, `fallback`)
 
@@ -29,8 +28,7 @@ TSmartAccount7702
   │     └── AbstractSigner
   ├── SignerEIP7702 (OZ — _rawSignatureValidation: ecrecover == address(this))
   │     └── AbstractSigner
-  ├── IAccount (ERC-4337)
-  └── (custom init guard — `initialized` flag in `EntryPointStorage`)
+  └── IAccount (ERC-4337)
 ```
 
 ### Graphs
@@ -47,7 +45,6 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 | Function | Guard |
 |---|---|
-| `initialize` | Custom `initialized` flag in `EntryPointStorage` (once per EOA) |
 | `validateUserOp` | `onlyEntryPoint` |
 | `execute` | `onlyEntryPointOrSelf` |
 | `deployDeterministic` | `onlyEntryPointOrSelf` |
@@ -58,7 +55,6 @@ The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`
 
 | Function | Visibility | Mutability | Modifiers |
 |---|---|---|---|
-| `initialize` | External | State-changing | Custom `initialized` flag |
 | `validateUserOp` | External | State-changing | `onlyEntryPoint` |
 | `execute` | External | Payable | `onlyEntryPointOrSelf` |
 | `deployDeterministic` | External | Payable | `onlyEntryPointOrSelf` |
@@ -89,42 +85,31 @@ The contract implements all three receiver callbacks:
 
 | Error | Description |
 |---|---|
-| `Unauthorized(address caller)` | Caller is not authorized (`msg.sender` is not EntryPoint, self, or does not match required identity) |
-| `AlreadyInitialized()` | `initialize()` called on an already-initialized account |
-| `NotInitialized()` | Protected function called before `initialize()` has been called |
-| `AddressZeroForEntryPointNotAllowed()` | `address(0)` passed as `entryPoint_` to `initialize()` |
+| `Unauthorized(address caller)` | Caller is not the EntryPoint or the account itself |
+| `EntryPointAddressZero()` | `address(0)` passed as `entryPoint_` to the constructor |
 | `EmptyBytecode()` | `deployDeterministic()` called with zero-length creation code |
 
 ### Events
 
 | Event | Emitted by |
 |---|---|
-| `EntryPointSet(address indexed entryPoint)` | `initialize()`: logs the EntryPoint address set for this EOA |
 | `ContractDeployed(address indexed deployed)` | `deployDeterministic()`: logs the address of the newly deployed contract |
 
-## Initialization Model
+## Delegation Model
 
-The account uses a **proxy-style initialization pattern** adapted for EIP-7702:
+The EntryPoint address is baked into the implementation bytecode as an immutable set at construction time. No per-EOA initialization is required after delegation:
 
 ```
-1. Deploy implementation ──> constructor() sets EIP712 immutables (name, version) in bytecode
-                              No _disableInitializers() needed — initialize() requires
-                              msg.sender == address(this), which can never hold for
-                              an external caller on the implementation itself.
+1. Deploy implementation ──> constructor(entryPoint_) sets ENTRY_POINT immutable
+                              and EIP-712 domain immutables (name, version) in bytecode.
+                              All delegating EOAs share these values.
 
 2. EOA signs EIP-7702 authorization tuple
-   ──> EOA's code now points to the implementation bytecode
-
-3. EOA calls initialize(entryPoint) on itself (msg.sender == address(this))
-   ──> entryPoint and initialized flag stored in EntryPointStorage
-       under wallet-private ERC-7201 namespace (no slot collision risk)
-   ──> AlreadyInitialized() reverts on any subsequent call
-   ──> only the EOA can call initialize (prevents front-running)
+   ──> EOA's code now points to the implementation bytecode.
+       The account is immediately operational with no further steps.
 ```
 
-Each delegating EOA has its own storage, so `initialize()` can be called once per EOA independently. The `initialized` flag lives in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`), not the shared OZ `Initializable` slot, preventing collisions with prior EOA delegations.
-
-The `entryPoint` address is stored in [ERC-7201](https://eips.ethereum.org/EIPS/eip-7201) namespaced storage (slot `0x38a1...7a00`, derived from `"smartaccount7702.entrypoint"`). This prevents slot collisions if an EOA previously delegated to a different implementation that wrote to low slots.
+Because the EntryPoint is an immutable, it is identical for every EOA that delegates to the same implementation. There is no per-EOA state to initialize, race, or misconfigure. Upgrading to a different EntryPoint requires deploying a new implementation contract and signing a new EIP-7702 authorization tuple, which is the canonical EIP-7702 upgrade path.
 
 ## Contract Deployment (CREATE2)
 
@@ -162,25 +147,9 @@ bytes memory callData = abi.encodeCall(
 
 This section documents the attack vectors analyzed against TSmartAccount7702 and how each is mitigated. All attacks are covered by tests in `test/AttackTests.t.sol` (v0.9) and `test/AttackTests.v08.t.sol` (v0.8).
 
-### Front-Running `initialize()`
+### EntryPoint Trust
 
-Without access control on `initialize()`, an attacker monitoring the mempool could front-run the owner after EIP-7702 delegation and set a malicious contract as the EntryPoint. The attacker's contract would then pass `onlyEntryPointOrSelf` and drain the account.
-
-**Mitigation:** `initialize()` requires `msg.sender == address(this)`, so only the EOA itself can call it:
-
-```solidity
-function initialize(address entryPoint_) external {
-    require(msg.sender == address(this), Unauthorized(msg.sender));
-    require(entryPoint_ != address(0), AddressZeroForEntryPointNotAllowed());
-    EntryPointStorage storage $ = _getEntryPointStorage();
-    require(!$.initialized, AlreadyInitialized());
-    $.initialized = true;
-    $.entryPoint = entryPoint_;
-    emit EntryPointSet(entryPoint_);
-}
-```
-
-In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(this)` and `data = abi.encodeCall(initialize, (entryPoint))`. This makes delegation and initialization atomic in a single transaction.
+The trusted EntryPoint is set once at implementation deployment as an immutable constructor parameter. There is no on-chain initialization step after delegation, so there is no window for an attacker to interfere with EntryPoint configuration. Every EOA that delegates to the same implementation automatically trusts the same EntryPoint without any additional transaction.
 
 ### Attack: Unauthorized Execution
 
@@ -190,7 +159,7 @@ In the EIP-7702 flow, the EOA signs a type-4 transaction where `to = address(thi
 | Random address calls `deployDeterministic()` | `onlyEntryPointOrSelf` reverts | `test_attack_unauthorizedDeployDeterministic_reverts` |
 
 The `onlyEntryPointOrSelf` modifier ensures only two callers are allowed:
-- The trusted EntryPoint (set via `initialize()`)
+- The trusted EntryPoint (baked in as `ENTRY_POINT` immutable)
 - The EOA itself (`msg.sender == address(this)`, for direct transactions)
 
 ### Attack: ETH and Token Theft
@@ -201,14 +170,6 @@ The `onlyEntryPointOrSelf` modifier ensures only two callers are allowed:
 | Drain ERC-20 via `execute(token, 0, transfer(...))` | Same access control | `test_attack_stealTokens_reverts` |
 
 Even if the attacker knows the exact calldata needed to drain the account, they cannot invoke `execute()` because only the EntryPoint or the EOA itself is authorized.
-
-### Attack: Re-Initialization
-
-| Attack | Mitigation | Test |
-|---|---|---|
-| Call `initialize()` again to change EntryPoint | Custom `initialized` flag in `EntryPointStorage` reverts with `AlreadyInitialized()` | `test_attack_reinitialize_reverts` |
-
-The `initialized` flag is stored in the wallet's own ERC-7201 namespace (`smartaccount7702.entrypoint`). Once `initialize()` has been called, any subsequent call reverts with `AlreadyInitialized()`, even from the EOA itself.
 
 ### Attack: Signature Attacks
 
@@ -223,22 +184,6 @@ Signature security relies on three layers:
 1. **ECDSA recovery**: `ecrecover(hash, sig) == address(this)`, meaning only the EOA's private key can produce valid signatures
 2. **EntryPoint nonce**: Each UserOp must carry a fresh nonce from the EntryPoint's nonce mapping, preventing replay
 3. **ERC-7739 domain binding**: ERC-1271 signatures include the account address in the EIP-712 domain separator, preventing cross-account replay
-
-### Attack: Uninitialized Account
-
-| Attack | Mitigation | Test |
-|---|---|---|
-| Exploit account before `initialize()` is called | `onlyEntryPoint` and `onlyEntryPointOrSelf` revert with `NotInitialized()` when `initialized == false`. | `test_attack_uninitializedAccount_isInert` |
-
-An uninitialized account is **inert**: all protected functions revert with `NotInitialized()`. This is a safe default; the account is non-functional but not exploitable.
-
-### Attack: Initialize via Callback
-
-| Attack | Mitigation | Test |
-|---|---|---|
-| Contract tries to call `initialize()` during a callback | `msg.sender` is the calling contract, not `address(this)` | `test_attack_initializeViaCallback_reverts` |
-
-Even if a malicious contract receives a callback from the wallet, it cannot call `initialize()` because `msg.sender` would be the malicious contract's address, not the EOA's address.
 
 ### Residual Risks
 
@@ -276,32 +221,24 @@ With EIP-7702, the EOA *is* the wallet. There is no need for:
 - **Multi-owner management**: The EOA's private key is the sole signer. `validateUserOp` verifies `ecrecover(userOpHash, signature) == address(this)`.
 - **Factory**: No proxy deployment is needed. Each EOA delegates directly to the deployed implementation contract.
 
-### Initializable EntryPoint
+### Immutable EntryPoint
 
-Each EOA sets its own EntryPoint via `initialize()` after delegation. This allows different EOAs to target different EntryPoint versions (v0.7, v0.8, v0.9). Initialization on the implementation contract itself is impossible because `initialize()` requires `msg.sender == address(this)`, which can never hold for an external caller on the implementation.
+The EntryPoint address is set once at implementation deployment via the constructor and baked into bytecode as an immutable. All EOAs delegating to the same implementation share the same EntryPoint. Targeting a different EntryPoint version requires deploying a new implementation with the desired address and re-delegating via a new EIP-7702 authorization tuple.
 
 ## Integration Flow
 
 ```
-1. Deploy TSmartAccount7702 implementation contract
+1. Deploy TSmartAccount7702 implementation contract (EntryPoint baked in as immutable)
 2. Bob's EOA delegates to TSmartAccount7702 via EIP-7702 authorization tuple
-3. Bob calls initialize(entryPoint) to set his trusted EntryPoint
-4. Bob signs EIP-2612 permit for USDC → Circle Paymaster
-5. UserOp submitted to bundler (e.g. Pimlico)
-6. EntryPoint → validateUserOp() recovers signature == address(this) ✓
-7. Circle Paymaster pays gas in USDC
-8. execute() / deployDeterministic() runs the target action
+   ──> account is immediately operational, no further setup required
+3. Bob signs EIP-2612 permit for USDC → Circle Paymaster
+4. UserOp submitted to bundler (e.g. Pimlico)
+5. EntryPoint → validateUserOp() recovers signature == address(this) ✓
+6. Circle Paymaster pays gas in USDC
+7. execute() / deployDeterministic() runs the target action
 ```
 
 ## Ethereum API
-
-### initialize
-
-```solidity
-function initialize(address entryPoint_) external
-```
-
-Sets the trusted EntryPoint address. Must be called once after EIP-7702 delegation. Only the EOA itself can call this (`msg.sender == address(this)`), preventing front-running attacks. Reverts with `AlreadyInitialized()` if called a second time. Emits `EntryPointSet(entryPoint)`.
 
 ### validateUserOp
 
@@ -339,11 +276,11 @@ Deploys a contract using CREATE2. The address is deterministic: `keccak256(0xff 
 function entryPoint() public view returns (address)
 ```
 
-Returns the EntryPoint address configured via `initialize()`.
+Returns the `ENTRY_POINT` immutable set at construction time.
 
 ## Test Suite
 
-The project has 135 tests across 28 test suites.
+The project has 127 tests across 28 test suites.
 
 ### Dual EntryPoint Testing
 
@@ -375,7 +312,6 @@ forge test --match-path "test/TSmartAccount7702/*.t.sol"
 | `ERC721Reception.t.sol` | ERC-721 reception via mint, transferFrom, safeTransferFrom, safeMint; sending via execute | Yes |
 | `ERC1155Reception.t.sol` | ERC-1155 reception via safeTransferFrom, safeBatchTransferFrom, safeMint, safeMintBatch; sending via execute | Yes |
 | `Fuzz.t.sol` | Fuzz tests (256 runs each) for signature validation, prefund, PersonalSign, TypedDataSign, execution, deployDeterministic, and supportsInterface | — |
-| `StorageLocation.t.sol` | Verifies on-chain ERC-7201 slot computation matches hardcoded `ENTRY_POINT_STORAGE_LOCATION` | — |
 
 ### Walkthrough Tests (`test/walkthrough/`)
 
@@ -407,7 +343,7 @@ These tests share setup and helpers via the abstract `WalkthroughBase` contract 
 | `testFuzz_execute_ethTransfer` | Fuzzed ETH amounts transfer correctly to fuzzed recipients |
 | `testFuzz_execute_erc20Transfer` | Fuzzed ERC-20 amounts transfer correctly to fuzzed recipients |
 | `testFuzz_deployDeterministic_predictedAddress` | Fuzzed salt produces deployed address matching CREATE2 prediction |
-| `test_supportsInterface_knownIds` | All 6 known interface IDs return `true` |
+| `test_supportsInterface_knownIds` | All 5 known interface IDs return `true` |
 | `testFuzz_supportsInterface_unknownId` | Random unknown interface IDs always return `false` |
 
 To increase the number of runs:
@@ -418,22 +354,22 @@ forge test --match-contract TestFuzz --fuzz-runs 10000
 
 ### Deploy Script Tests (`test/script/DeployTSmartAccount7702.t.sol`)
 
-8 tests verifying the deployment script produces a correctly configured implementation:
+9 tests verifying the deployment script produces a correctly configured implementation:
 
 | Test | What it verifies |
 |---|---|
 | `test_salt_matchesExpectedPreimage` | Salt equals `keccak256("TSmart Account 7702 v1")` |
 | `test_deploy_addressIsDeterministic` | Deployed address matches CREATE2 prediction |
-| `test_implementation_initializersDisabled` | `initialize()` reverts on the implementation itself |
-| `test_implementation_entryPointIsZero` | `entryPoint()` returns `address(0)` (locked implementation) |
-| `test_implementation_supportsExpectedInterfaces` | All 6 interface IDs (ERC-165, IAccount, ERC-1271, ERC-7739, ERC-721 Receiver, ERC-1155 Receiver) |
+| `test_implementation_entryPointZeroReverts` | Constructor reverts with `EntryPointAddressZero()` when `address(0)` is passed |
+| `test_implementation_entryPointIsConstant` | `entryPoint()` returns the v0.8.0 canonical address |
+| `test_implementation_supportsExpectedInterfaces` | All 5 interface IDs (ERC-165, IAccount, ERC-1271, ERC-721 Receiver, ERC-1155 Receiver) |
 | `test_implementation_eip712Domain` | Domain name `"TSmart Account 7702"`, version `"1"`, correct chain/address |
 | `test_implementation_hasCode` | Non-empty bytecode |
 | `test_script_runsSuccessfully` | `DeployTSmartAccount7702Script.run()` completes without reverting |
 
 ### Attack Tests (`test/AttackTests.t.sol`)
 
-12 adversarial tests that simulate attacks and pass if the attack is correctly prevented. Both EntryPoint v0.9 and v0.8 variants are tested (24 total). See [Threat Model](#threat-model) for details.
+7 adversarial tests that simulate attacks and pass if the attack is correctly prevented. Both EntryPoint v0.9 and v0.8 variants are tested (14 total). See [Threat Model](#threat-model) for details.
 
 ## Developing
 
@@ -464,13 +400,11 @@ RPC_URL=
 Then deploy the implementation:
 
 ```bash
-# 1. Deploy the implementation (initializers disabled on the implementation itself)
+# 1. Deploy the implementation (EntryPoint baked in as immutable)
 forge script script/DeployTSmartAccount7702.s.sol --rpc-url $RPC_URL --account $ACCOUNT --broadcast
 
 # 2. Each EOA delegates to the implementation via EIP-7702 authorization tuple
-
-# 3. Each EOA initializes with its chosen EntryPoint
-cast send <EOA_ADDRESS> "initialize(address)" <ENTRY_POINT_ADDRESS>
+#    The account is immediately operational after delegation — no further steps required.
 ```
 
 ## Audit
@@ -490,11 +424,11 @@ Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), 
 |---|---|
 | **H-1**: Contract locks Ether without a withdraw function | False positive: EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
 | **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged: intentional, `^0.8.34` is the CVF-6 fix |
-| **L-2**: PUSH0 Opcode | Not applicable: Prague EVM is required for EIP-7702; PUSH0 is supported |
-| **L-3**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional separation from `onlyEntryPointOrSelf` |
-| **L-4**: Unused state variable (`ENTRY_POINT_STORAGE_LOCATION`) | False positive: used in inline assembly (Aderyn tool limitation) |
+| **L-2**: Empty `require()` statement | Fixed: added `EntryPointAddressZero()` custom error |
+| **L-3**: PUSH0 Opcode | Not applicable: Prague EVM is required for EIP-7702; PUSH0 is supported |
+| **L-4**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional separation from `onlyEntryPointOrSelf` |
 
-Compared to v0.3.0: **"Literal Instead of Constant"** is no longer reported (resolved by CVF-12). Two new findings appear: **L-1** and **L-2** are expected consequences of the CVF-6 pragma fix (`^0.8.34`) and the Prague EVM target.
+Compared to v0.3.0: **"Literal Instead of Constant"** and **"Unused state variable" (`ENTRY_POINT_STORAGE_LOCATION`)** are no longer reported (the storage system was removed entirely). Two new findings appear: **L-1** from the CVF-6 pragma fix and **L-2** from the constructor zero-address guard.
 
 #### Slither
 
@@ -505,9 +439,10 @@ Static analysis was also performed using [Slither](https://github.com/crytic/sli
 
 | Finding | Count | Verdict |
 |---|---|---|
-| **Assembly usage** (Informational) | 4 instances | Acknowledged: all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `_getEntryPointStorage` (ERC-7201 slot), `deployDeterministic` (CREATE2) |
+| **Assembly usage** (Informational) | 3 instances | Acknowledged: all assembly is intentional: `_call` (revert bubbling), `validateUserOp` (ETH transfer), `deployDeterministic` (CREATE2) |
+| **Naming convention** (Informational) | 1 instance | Acknowledged: `ENTRY_POINT` is an immutable; UPPER_SNAKE_CASE is correct and conventional |
 
-No high, medium, or low severity issues were detected.
+Compared to v0.3.0: the `_getEntryPointStorage` assembly finding is gone (function removed with the storage system). A new naming-convention finding appears for `ENTRY_POINT` (immutable added in place of storage). No high, medium, or low severity issues were detected.
 
 ## FAQ
 
