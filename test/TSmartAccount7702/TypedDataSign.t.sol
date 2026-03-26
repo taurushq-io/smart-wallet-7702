@@ -137,8 +137,6 @@ contract TestTypedDataSign is SmartWalletTestBase, UseEntryPointV09 {
         TSmartAccount7702 impl2 = new TSmartAccount7702();
         vm.etch(bob, address(impl2).code);
         TSmartAccount7702 bobAccount = TSmartAccount7702(payable(bob));
-        vm.prank(bob);
-        bobAccount.initialize(address(entryPoint));
 
         // Build signature for Alice's account
         address appContract = address(0xAABB);

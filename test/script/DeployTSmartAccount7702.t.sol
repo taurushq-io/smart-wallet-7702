@@ -48,20 +48,16 @@ contract TestDeployScript is Test {
         assertEq(address(implementation), predicted, "deployed address must match CREATE2 prediction");
     }
 
-    // ─── Implementation Locking
+    // ─── EntryPoint Constant
     // ──────────────────────────────────────
 
-    /// @dev The implementation contract cannot be initialized because `initialize()`
-    ///      requires `msg.sender == address(this)`, which never holds for an external caller.
-    function test_implementation_initializeReverts() public {
-        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, address(this)));
-        implementation.initialize(address(0x1234));
-    }
-
-    /// @dev entryPoint() on the implementation must return address(0)
-    ///      since initialize() was never (and can never be) called.
-    function test_implementation_entryPointIsZero() public view {
-        assertEq(implementation.entryPoint(), address(0), "implementation entryPoint must be address(0)");
+    /// @dev entryPoint() must return the hardcoded v0.8.0 canonical address.
+    function test_implementation_entryPointIsConstant() public view {
+        assertEq(
+            implementation.entryPoint(),
+            0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108,
+            "implementation entryPoint must be the v0.8.0 canonical address"
+        );
     }
 
     // ─── Interface Support

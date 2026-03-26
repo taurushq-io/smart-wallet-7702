@@ -5,7 +5,6 @@ import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {Test} from "forge-std/Test.sol";
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {
@@ -112,19 +111,3 @@ abstract contract TestDeployBase is SmartWalletTestBase {
 
 /// @dev Runs deploy tests against EntryPoint v0.9.
 contract TestDeploy is TestDeployBase, UseEntryPointV09 {}
-
-contract TestDeployUninitialized is Test {
-    function test_deployDeterministic_revertsWhenNotInitialized_evenForSelfCall() public {
-        (address signer,) = makeAddrAndKey("alice");
-
-        TSmartAccount7702 impl = new TSmartAccount7702();
-        vm.etch(signer, address(impl).code);
-        TSmartAccount7702 uninitializedAccount = TSmartAccount7702(payable(signer));
-
-        bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(1)));
-
-        vm.prank(signer);
-        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
-        uninitializedAccount.deployDeterministic(0, creationCode, bytes32(0));
-    }
-}

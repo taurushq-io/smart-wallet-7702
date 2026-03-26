@@ -22,6 +22,6 @@ contract DeployTSmartAccount7702Script is Script {
         vm.stopBroadcast();
 
         console2.log("implementation", address(implementation));
-        console2.log("Each delegating EOA must call initialize(entryPoint) after EIP-7702 delegation");
+        console2.log("EntryPoint v0.8.0 is hardcoded - no initialization required after EIP-7702 delegation");
     }
 }

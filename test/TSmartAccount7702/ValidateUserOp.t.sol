@@ -149,23 +149,3 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
 
 /// @dev Runs validateUserOp tests against EntryPoint v0.9.
 contract TestValidateUserOp is TestValidateUserOpBase, UseEntryPointV09 {}
-
-contract TestValidateUserOpUninitialized is SmartWalletTestBase, UseEntryPointV09 {
-    function setUp() public override {
-        (signer, signerPrivateKey) = makeAddrAndKey("alice");
-
-        _deployEntryPoint();
-
-        TSmartAccount7702 impl = new TSmartAccount7702();
-        vm.etch(signer, address(impl).code);
-        account = TSmartAccount7702(payable(signer));
-    }
-
-    function test_revertsWhenNotInitialized() public {
-        PackedUserOperation memory userOp;
-        userOp.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(27));
-
-        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
-        account.validateUserOp(userOp, keccak256("123"), 0);
-    }
-}

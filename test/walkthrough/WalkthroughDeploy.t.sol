@@ -44,12 +44,11 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
     function test_walkthrough_deployContract_CREATE2() public {
         // -------------------------------------------------------------------
-        // STEP 1-3: Deploy infrastructure, delegate, initialize
+        // STEP 1-2: Deploy infrastructure and delegate via EIP-7702
         // -------------------------------------------------------------------
         _deployInfrastructure();
         _setupPaymaster();
         _delegateVia7702();
-        _initializeAccount();
 
         // -------------------------------------------------------------------
         // STEP 4: Build the UserOp — deploy WalkthroughStorage via CREATE2
@@ -127,7 +126,6 @@ contract WalkthroughDeployTest is WalkthroughBase {
         _deployInfrastructure();
         _setupPaymaster();
         _delegateVia7702();
-        _initializeAccount();
 
         // --- UserOp 1: Deploy WalkthroughStorage via CREATE2 ---
         console2.log("");

@@ -16,7 +16,7 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 ///
 ///      1. Deploy infrastructure (EntryPoint, implementation, USDC)
 ///      2. Deploy and fund a paymaster (deposit ETH + stake in the EntryPoint)
-///      3. EOA delegates its code via EIP-7702 and initializes
+///      3. EOA delegates its code via EIP-7702
 ///      4. Build a UserOperation with realistic gas fees AND paymasterAndData
 ///      5. Sign and submit — the paymaster pays gas, Alice keeps all her ETH
 ///      6. Verify the transfer AND that the paymaster's deposit was charged
@@ -65,10 +65,9 @@ contract WalkthroughPaymasterTest is WalkthroughBase {
         console2.log("Paymaster staked: 1 ETH (unstake delay: 1s)");
 
         // -------------------------------------------------------------------
-        // STEP 3–4: Delegate via EIP-7702 and initialize
+        // STEP 3–4: Delegate via EIP-7702
         // -------------------------------------------------------------------
         _delegateVia7702();
-        _initializeAccount();
 
         // -------------------------------------------------------------------
         // STEP 5: Build the UserOperation with paymaster

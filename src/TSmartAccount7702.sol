@@ -38,80 +38,36 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     string private constant VERSION = "1.0.0";
 
+    /// @notice The canonical ERC-4337 EntryPoint v0.8.0 address.
+    ///
+    /// @dev Hardcoded as an immutable constant — no initialization required.
+    ///      This eliminates the front-running attack surface that existed with a mutable
+    ///      EntryPoint: since the EntryPoint is fixed at compile time, there is no window
+    ///      in which an attacker could set a malicious EntryPoint before the account owner.
+    ///
+    ///      To support a different EntryPoint (e.g. v0.9.0), deploy a subclass that overrides
+    ///      `entryPoint()` to return the desired address.
+    address public constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
+
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);
-
-    /// @notice Thrown when the account is initialized more than once.
-    error AlreadyInitialized();
-
-    /// @notice Thrown when a protected function is called before initialization.
-    error NotInitialized();
-
-    /// @notice Thrown when `address(0)` is passed as the EntryPoint to `initialize()`.
-    error AddressZeroForEntryPointNotAllowed();
 
     /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
-    /// @notice Emitted when the account is initialized with an EntryPoint.
-    /// @dev Named `EntryPointSet` to keep the init event domain-specific.
-    event EntryPointSet(address indexed entryPoint);
-
     /// @notice Emitted when a contract is deployed via CREATE2.
     event ContractDeployed(address indexed deployed);
-
-    /// @custom:storage-location erc7201:smartaccount7702.entrypoint
-    struct EntryPointStorage {
-        address entryPoint;
-        bool initialized;
-    }
-
-    /// @dev ERC-7201 namespaced storage slot for `EntryPointStorage`.
-    ///      keccak256(abi.encode(uint256(keccak256("smartaccount7702.entrypoint")) - 1)) & ~bytes32(uint256(0xff))
-    ///
-    ///      Using ERC-7201 prevents slot collisions under EIP-7702 re-delegation: if an EOA
-    ///      previously delegated to another implementation that wrote to low slots (0, 1, ...),
-    ///      re-delegating to this contract would misinterpret that data as an EntryPoint address.
-    ///      The namespaced slot is derived from a unique string, making collision practically impossible.
-    bytes32 private constant ENTRY_POINT_STORAGE_LOCATION =
-        0x38a124a88e3a590426742b6544792c2b2bc21792f86c1fa1375b57726d827a00;
 
     /// @notice Deploys the implementation.
     /// @dev `EIP712` sets immutables (name/version hashes) in bytecode — these are shared by all
     ///      delegating EOAs and work correctly under EIP-7702.
-    ///      `_disableInitializers()` is not needed: `initialize()` requires
-    ///      `msg.sender == address(this)`, which can never hold for an external caller on the
-    ///      bare implementation contract.
     ///      The "T" prefix in the domain name stands for "Taurus" (the organization behind this wallet).
     ///      This name is immutable once deployed — all off-chain signing tools must use it exactly.
     constructor() EIP712("TSmart Account 7702", "1") {}
 
-    /// @notice Initializes the account with the trusted EntryPoint address.
-    ///
-    /// @dev Must be called once after EIP-7702 delegation. Only the EOA itself can call this
-    ///      (`msg.sender == address(this)`), which prevents front-running attacks where an
-    ///      attacker sets a malicious EntryPoint before the owner.
-    ///
-    ///      In the EIP-7702 flow, the EOA signs a type-4 transaction that includes both the
-    ///      authorization tuple (setting the code) and a call to `initialize()` as calldata
-    ///      (with `to = address(this)`). This makes delegation and initialization atomic.
-    ///
-    /// @param entryPoint_ The EntryPoint address this account will trust.
-    function initialize(address entryPoint_) external {
-        require(msg.sender == address(this), Unauthorized(msg.sender));
-        require(entryPoint_ != address(0), AddressZeroForEntryPointNotAllowed());
-        EntryPointStorage storage $ = _getEntryPointStorage();
-        require(!$.initialized, AlreadyInitialized());
-        $.initialized = true;
-        $.entryPoint = entryPoint_;
-        emit EntryPointSet(entryPoint_);
-    }
-
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() {
-        EntryPointStorage storage $ = _getEntryPointStorage();
-        require($.initialized, NotInitialized());
-        require(msg.sender == $.entryPoint, Unauthorized(msg.sender));
+        require(msg.sender == entryPoint(), Unauthorized(msg.sender));
         _;
     }
 
@@ -120,9 +76,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @dev With EIP-7702, `address(this)` is the EOA. When the EOA sends a normal transaction
     ///      to itself, `msg.sender == address(this)`, allowing direct execution without the EntryPoint.
     modifier onlyEntryPointOrSelf() {
-        EntryPointStorage storage $ = _getEntryPointStorage();
-        require($.initialized, NotInitialized());
-        require(msg.sender == $.entryPoint || msg.sender == address(this), Unauthorized(msg.sender));
+        require(msg.sender == entryPoint() || msg.sender == address(this), Unauthorized(msg.sender));
         _;
     }
 
@@ -241,15 +195,11 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     }
 
     /// @notice Returns the address of the trusted EntryPoint.
+    ///
+    /// @dev Virtual to allow subclasses to override for a different EntryPoint version.
+    ///      The base implementation returns the hardcoded v0.8.0 canonical address.
     function entryPoint() public view virtual returns (address) {
-        return _getEntryPointStorage().entryPoint;
-    }
-
-    /// @dev Returns the ERC-7201 namespaced storage pointer for `EntryPointStorage`.
-    function _getEntryPointStorage() private pure returns (EntryPointStorage storage $) {
-        assembly {
-            $.slot := ENTRY_POINT_STORAGE_LOCATION
-        }
+        return ENTRY_POINT;
     }
 
     /// @notice ERC-165 interface detection.

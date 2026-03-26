@@ -37,8 +37,6 @@ abstract contract SmartWalletTestBase is Test {
         TSmartAccount7702 impl = new TSmartAccount7702();
         vm.etch(signer, address(impl).code);
         account = TSmartAccount7702(payable(signer));
-        vm.prank(signer);
-        account.initialize(address(entryPoint));
     }
 
     function _sendUserOperation(PackedUserOperation memory userOp) internal {

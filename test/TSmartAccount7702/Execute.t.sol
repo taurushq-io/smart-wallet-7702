@@ -5,7 +5,6 @@ import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {Test} from "forge-std/Test.sol";
 
 /// @dev Abstract test logic for execute(). Concrete classes provide the EntryPoint version.
 abstract contract TestExecuteBase is SmartWalletTestBase {
@@ -53,18 +52,3 @@ abstract contract TestExecuteBase is SmartWalletTestBase {
 
 /// @dev Runs execute tests against EntryPoint v0.9.
 contract TestExecute is TestExecuteBase, UseEntryPointV09 {}
-
-contract TestExecuteUninitialized is Test {
-    function test_execute_revertsWhenNotInitialized_evenForSelfCall() public {
-        (address signer,) = makeAddrAndKey("alice");
-
-        TSmartAccount7702 impl = new TSmartAccount7702();
-        vm.etch(signer, address(impl).code);
-        TSmartAccount7702 uninitializedAccount = TSmartAccount7702(payable(signer));
-        address target = address(new MockTarget());
-
-        vm.prank(signer);
-        vm.expectRevert(TSmartAccount7702.NotInitialized.selector);
-        uninitializedAccount.execute(target, 0, "");
-    }
-}
