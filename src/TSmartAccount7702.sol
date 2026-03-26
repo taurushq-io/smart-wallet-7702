@@ -54,6 +54,9 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     /// @notice Thrown when `deployDeterministic` is called with empty creation code.
     error EmptyBytecode();
 
+    /// @notice Thrown when the zero address is passed as the EntryPoint to the constructor.
+    error EntryPointAddressZero();
+
     /// @notice Emitted when a contract is deployed via CREATE2.
     event ContractDeployed(address indexed deployed);
 
@@ -68,7 +71,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///                    Must not be the zero address. Passing address(0) permanently bricks
     ///                    the account since no caller can ever satisfy `msg.sender == address(0)`.
     constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
-        require(entryPoint_ != address(0));
+        require(entryPoint_ != address(0), EntryPointAddressZero());
         ENTRY_POINT = entryPoint_;
     }
 

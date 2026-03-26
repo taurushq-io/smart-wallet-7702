@@ -56,6 +56,12 @@ contract TestDeployScript is Test {
     // ─── EntryPoint Immutable
     // ──────────────────────────────────────
 
+    /// @dev Passing address(0) to the constructor must revert with EntryPointAddressZero.
+    function test_implementation_entryPointZeroReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.EntryPointAddressZero.selector));
+        new TSmartAccount7702(address(0));
+    }
+
     /// @dev entryPoint() must return the address passed to the constructor.
     function test_implementation_entryPointIsConstant() public view {
         assertEq(
