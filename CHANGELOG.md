@@ -106,7 +106,7 @@ Supersedes the per-EOA initialization model introduced in rc0 with an immutable 
 
 ### Security
 
-- **EntryPoint moved to immutable**: `address public immutable ENTRY_POINT` replaces the ERC-7201 `EntryPointStorage` system. The EntryPoint is baked into the implementation bytecode at deployment. No per-EOA `initialize()` call is required or possible. (`6dc652f`, `8d78988`)
+- **EntryPoint moved to immutable**: `address private immutable ENTRY_POINT` replaces the ERC-7201 `EntryPointStorage` system. The EntryPoint is baked into the implementation bytecode at deployment. No per-EOA `initialize()` call is required or possible. (`6dc652f`, `8d78988`)
 - **`EntryPointAddressZero()` guard**: `require(entryPoint_ != address(0), EntryPointAddressZero())` added to the constructor. Deploying with `address(0)` reverts immediately at construction time. (`98f1801`)
 
 ### Added
