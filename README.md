@@ -41,6 +41,8 @@ TSmartAccount7702
 
 The contract uses the EIP-712 domain name `"TSmart Account 7702"` (version `"1"`), where the "T" stands for **Taurus**, the organization behind this wallet. This name is baked into bytecode immutables at construction and cannot be changed after deployment. All off-chain signing tools, dApps, and integrators must use this exact string to produce valid ERC-1271 / ERC-7739 signatures. The `eip712Domain()` view function returns the domain parameters for programmatic discovery.
 
+> **Warning:** The OZ `EIP712` base contract stores domain name and version as `ShortString` values. If either string is 32 bytes or longer, OpenZeppelin writes the overflow to storage fallback variables (`_nameFallback` at slot 0, `_versionFallback` at slot 1). Under EIP-7702, those writes land in the **delegating EOA's** storage, permanently overwriting slots 0 and 1. The current strings `"TSmart Account 7702"` (19 bytes) and `"1"` (1 byte) both fit within the 31-byte `ShortString` limit, so this path is never triggered. Any future version of this contract must keep both domain strings under 32 bytes.
+
 ### Access Control
 
 | Function | Guard |
@@ -417,18 +419,17 @@ A detailed diff between v0.3.0 and v1.0.0, covering all behavioral changes, secu
 
 Static analysis was performed using [Aderyn](https://github.com/Cyfrin/aderyn), a Rust-based Solidity static analyzer by Cyfrin.
 
-- [Raw report](doc/audit/tool/aderyn/aderyn-report.md): 1 high, 4 low findings
+- [Raw report](doc/audit/tool/aderyn/aderyn-report.md): 1 high, 3 low findings
 - [Feedback](doc/audit/tool/aderyn/aderyn-report-feedback.md): analysis and verdict for each finding
 
 | Finding | Verdict |
 |---|---|
 | **H-1**: Contract locks Ether without a withdraw function | False positive: EIP-7702 account; EOA withdraws via `execute()` or direct transactions |
 | **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged: intentional, `^0.8.34` is the CVF-6 fix |
-| **L-2**: Empty `require()` statement | Fixed: added `EntryPointAddressZero()` custom error |
-| **L-3**: PUSH0 Opcode | Not applicable: Prague EVM is required for EIP-7702; PUSH0 is supported |
-| **L-4**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional separation from `onlyEntryPointOrSelf` |
+| **L-2**: PUSH0 Opcode | Not applicable: Prague EVM is required for EIP-7702; PUSH0 is supported |
+| **L-3**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional separation from `onlyEntryPointOrSelf` |
 
-Compared to v0.3.0: **"Literal Instead of Constant"** and **"Unused state variable" (`ENTRY_POINT_STORAGE_LOCATION`)** are no longer reported (the storage system was removed entirely). Two new findings appear: **L-1** from the CVF-6 pragma fix and **L-2** from the constructor zero-address guard.
+Compared to v0.3.0: **"Literal Instead of Constant"**, **"Unused state variable" (`ENTRY_POINT_STORAGE_LOCATION`)**, and **"Empty `require()` statement"** are no longer reported. Two new findings appear: **L-1** from the CVF-6 pragma fix and **L-2** from the Prague EVM target.
 
 #### Slither
 
