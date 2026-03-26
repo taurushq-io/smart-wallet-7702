@@ -50,11 +50,11 @@ No functionality was removed. No bugs were introduced. All behavioral changes ar
 
 ```solidity
 // v1.0.0 only
-address public immutable ENTRY_POINT;
+address private immutable ENTRY_POINT;
 string private constant VERSION = "1.0.0";
 ```
 
-- `ENTRY_POINT` immutable replaces `EntryPointStorage` ERC-7201 storage. The EntryPoint address is now baked into the bytecode at deployment time rather than stored per-EOA.
+- `ENTRY_POINT` immutable replaces `EntryPointStorage` ERC-7201 storage. The EntryPoint address is now baked into the bytecode at deployment time rather than stored per-EOA. Declared `private` — `entryPoint()` is the sole public accessor.
 - `VERSION` replaces the hardcoded `"0.3.0"` string in `version()` (CVF-11).
 - `ENTRY_POINT_STORAGE_LOCATION` and the entire `EntryPointStorage` struct are absent from v1.0.0.
 

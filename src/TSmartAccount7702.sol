@@ -46,7 +46,7 @@ contract TSmartAccount7702 is ERC7739, SignerEIP7702, IAccount {
     ///      To target a different EntryPoint version, deploy a new implementation with the
     ///      desired address. All delegating EOAs re-point automatically by signing a new
     ///      EIP-7702 authorization tuple.
-    address public immutable ENTRY_POINT;
+    address private immutable ENTRY_POINT;
 
     /// @notice Thrown when the caller is not authorized.
     error Unauthorized(address caller);

@@ -21,9 +21,9 @@ function initialize(address entryPoint_) external initializer {
 }
 ```
 
-**New** (`src/`): EntryPoint is an immutable set in the constructor. No storage, no initializer.
+**New** (`src/`): EntryPoint is an immutable set in the constructor. No storage, no initializer. Declared `private` — exposed via `entryPoint()` accessor only.
 ```solidity
-address public immutable ENTRY_POINT;
+address private immutable ENTRY_POINT;
 
 constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
     require(entryPoint_ != address(0), EntryPointAddressZero());

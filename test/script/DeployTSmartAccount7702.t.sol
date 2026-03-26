@@ -45,8 +45,7 @@ contract TestDeployScript is Test {
     ///      The init code includes both the creation bytecode and the ABI-encoded constructor argument.
     function test_deploy_addressIsDeterministic() public view {
         bytes memory initCode = abi.encodePacked(
-            type(TSmartAccount7702).creationCode,
-            abi.encode(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108))
+            type(TSmartAccount7702).creationCode, abi.encode(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108))
         );
         bytes32 initCodeHash = keccak256(initCode);
         address predicted = vm.computeCreate2Address(EXPECTED_SALT, initCodeHash, address(this));

@@ -56,7 +56,7 @@ Final release. Combines all changes from rc0 and rc1. Full diff from v0.3.0 is d
 
 ### Added
 
-- `address public immutable ENTRY_POINT` — EntryPoint set once at deployment, shared by all delegating EOAs.
+- `address private immutable ENTRY_POINT` — EntryPoint set once at deployment, shared by all delegating EOAs. Exposed via `entryPoint()` accessor.
 - `error EntryPointAddressZero()` — reverts when `address(0)` is passed to the constructor.
 - `test/mocks/TSmartAccount7702V09.sol` — convenience subcontract targeting the EntryPoint v0.9.0 canonical address, for tests that need the actual v0.9 address.
 
@@ -111,7 +111,7 @@ Supersedes the per-EOA initialization model introduced in rc0 with an immutable 
 
 ### Added
 
-- `address public immutable ENTRY_POINT` set via constructor parameter. (`8d78988`)
+- `address private immutable ENTRY_POINT` set via constructor parameter. (`8d78988`)
 - `error EntryPointAddressZero()`. (`98f1801`)
 - `test/mocks/TSmartAccount7702V09.sol`: subcontract targeting EntryPoint v0.9.0 canonical address for tests that need the actual v0.9 address rather than bytecode deployed at the v0.8 address. (`6dc652f`)
 - `test_implementation_entryPointZeroReverts`: verifies the constructor reverts with `EntryPointAddressZero()` when `address(0)` is passed. (`98f1801`)
@@ -128,8 +128,8 @@ Supersedes the per-EOA initialization model introduced in rc0 with an immutable 
 ### Changed
 
 - Constructor signature changed from `constructor()` to `constructor(address entryPoint_)`. (`8d78988`)
+- `ENTRY_POINT` visibility changed from `public` to `private` — `entryPoint()` is the sole public accessor, avoiding a redundant auto-generated getter. (`8d78988`)
 - `onlyEntryPoint` and `onlyEntryPointOrSelf` read `ENTRY_POINT` immutable directly instead of calling `entryPoint()`, preventing subclass divergence from bypassing the security check. (`8d78988`)
-- Code comments rewritten: em dash phrase structures removed throughout `TSmartAccount7702.sol`. (`6d23314`)
 
 ### Documentation
 
