@@ -43,13 +43,109 @@ forge lint
   - Update surya doc by running the 3 scripts in [./doc/script](./doc/script)
   - Update changelog
 
-## [1.0.0] — 
+## [1.0.0]
+
+Final release. Combines all changes from rc0 and rc1. Full diff from v0.3.0 is documented in [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
+
+### Security
+
+- **CVF-1 (Major)**: Replaced OZ `Initializable` with a wallet-private ERC-7201 init guard, then superseded by an immutable constructor parameter (see rc1). The entire per-EOA initialization system was eliminated, removing the initialization window and sponsorship limitation entirely.
+- **CVF-2 (Moderate)**: Modifiers now check the `ENTRY_POINT` immutable directly. No uninitialized state exists, so no `NotInitialized` check is needed. A subclass override of `entryPoint()` cannot bypass the modifier because it reads the immutable, not the virtual function.
+- **CR-6**: Signature validation moved before the prefund payment in `validateUserOp`. Invalid-signature UserOps no longer cause any ETH to leave the account.
+- **CR-1**: Zero-address guard on the EntryPoint parameter, now enforced at construction time via `EntryPointAddressZero()`.
+
+### Added
+
+- `address public immutable ENTRY_POINT` — EntryPoint set once at deployment, shared by all delegating EOAs.
+- `error EntryPointAddressZero()` — reverts when `address(0)` is passed to the constructor.
+- `test/mocks/TSmartAccount7702V09.sol` — convenience subcontract targeting the EntryPoint v0.9.0 canonical address, for tests that need the actual v0.9 address.
+
+### Removed
+
+- `initialize(address entryPoint_)` — no per-EOA initialization required.
+- `EntryPointStorage` struct and `ENTRY_POINT_STORAGE_LOCATION` constant — entire ERC-7201 namespaced storage system removed.
+- `_getEntryPointStorage()` helper.
+- `error AlreadyInitialized()`, `error NotInitialized()`, `error AddressZeroForEntryPointNotAllowed()`.
+- `event EntryPointSet(address indexed entryPoint)`.
+- `test/TSmartAccount7702/StorageLocation.t.sol` — no storage slot to verify.
+- Five initialization-specific attack tests from `AttackTests.t.sol` (front-run initialize, re-initialize, uninitialized account, initialize via callback, initialize with address(0)).
+
+### Changed
+
+- **CVF-8**: `error Unauthorized()` → `error Unauthorized(address caller)`. All revert sites pass `msg.sender`. (`1c3521c`)
+- **CVF-12**: Magic `bytes4` literals in `supportsInterface` replaced with `type(...).interfaceId` expressions. `ERC7739_INTERFACE_ID` subsequently removed — ERC-7739 has no ERC-165 interface ID; detection is via `isValidSignature`. Token receiver callback return literals replaced with `.selector` expressions. (`5d7232f`, `8eefd50`, `7048e0c`)
+- **CVF-11**: Inline version string replaced with `string private constant VERSION`. (`0f863e6`)
+- **CVF-6**: Pragma relaxed from `0.8.34` to `^0.8.34`. (`f4fa540`)
+- `onlyEntryPoint` and `onlyEntryPointOrSelf` modifiers read `ENTRY_POINT` immutable directly rather than calling `entryPoint()` virtual function.
+- **Version**: Contract version bumped to `"1.0.0"`.
+
+### Fixed
+
+- **CVF-3**: Corrected `_call()` NatSpec — calldata is copied into memory via `calldatacopy`; the previous comment incorrectly stated it was forwarded "without copying to memory". (`8a2573c`)
+
+### Documentation
+
+- **CVF-4**: NatSpec added to `execute()` documenting intentional return data discard. (`d5db86b`)
+- **CVF-10**: `// Intentionally empty:` inline comments added to `receive()` and `fallback()`. (`432a390`)
+- ABDK audit feedback document added at `doc/audit/abdk/taurus-reportv0.3.0-feedback.md`.
+
+### Not changed
+
+- **CVF-4**: No logic change — return data drop is intentional and consistent with all major ERC-4337 implementations.
+- **CVF-5**: Rejected — wrapping raw revert data in a named error would break ERC-4337 bundler parsing, off-chain tooling, and EIP-7821 compatibility.
+- **CVF-7**: Out of scope — `IAccount` and `PackedUserOperation` are minimal interface definitions from the audited `account-abstraction` v0.9.0 upstream.
+- **CVF-9**: Obsolete — the entire ERC-7201 storage system was removed; `ENTRY_POINT_STORAGE_LOCATION` no longer exists.
+
+---
+
+## [1.0.0-rc1] — 2026-03-26
+
+Commits: `6dc652f`, `8d78988`, `6d23314`, `98f1801`, `c5ff3fd`
+
+Supersedes the per-EOA initialization model introduced in rc0 with an immutable constructor parameter. Eliminates the initialization window and the sponsorship limitation identified in the post-rc0 review.
+
+### Security
+
+- **EntryPoint moved to immutable**: `address public immutable ENTRY_POINT` replaces the ERC-7201 `EntryPointStorage` system. The EntryPoint is baked into the implementation bytecode at deployment. No per-EOA `initialize()` call is required or possible. (`6dc652f`, `8d78988`)
+- **`EntryPointAddressZero()` guard**: `require(entryPoint_ != address(0), EntryPointAddressZero())` added to the constructor. Deploying with `address(0)` reverts immediately at construction time. (`98f1801`)
+
+### Added
+
+- `address public immutable ENTRY_POINT` set via constructor parameter. (`8d78988`)
+- `error EntryPointAddressZero()`. (`98f1801`)
+- `test/mocks/TSmartAccount7702V09.sol`: subcontract targeting EntryPoint v0.9.0 canonical address for tests that need the actual v0.9 address rather than bytecode deployed at the v0.8 address. (`6dc652f`)
+- `test_implementation_entryPointZeroReverts`: verifies the constructor reverts with `EntryPointAddressZero()` when `address(0)` is passed. (`98f1801`)
+
+### Removed
+
+- `initialize(address entryPoint_)` and all associated infrastructure: `EntryPointStorage` struct, `ENTRY_POINT_STORAGE_LOCATION` constant, `_getEntryPointStorage()` helper. (`6dc652f`)
+- `error AlreadyInitialized()`, `error NotInitialized()`, `error AddressZeroForEntryPointNotAllowed()`. (`6dc652f`)
+- `event EntryPointSet(address indexed entryPoint)`. (`6dc652f`)
+- `test/TSmartAccount7702/StorageLocation.t.sol`. (`6dc652f`)
+- `TestValidateUserOpUninitialized`, `TestExecuteUninitialized`, `TestDeployUninitialized` test classes. (`6dc652f`)
+- Five initialization attack tests from `AttackTests.t.sol`: front-run initialize, re-initialize, uninitialized account, initialize via callback, initialize with address(0). (`6dc652f`)
+
+### Changed
+
+- Constructor signature changed from `constructor()` to `constructor(address entryPoint_)`. (`8d78988`)
+- `onlyEntryPoint` and `onlyEntryPointOrSelf` read `ENTRY_POINT` immutable directly instead of calling `entryPoint()`, preventing subclass divergence from bypassing the security check. (`8d78988`)
+- Code comments rewritten: em dash phrase structures removed throughout `TSmartAccount7702.sol`. (`6d23314`)
+
+### Documentation
+
+- Updated README, ABDK audit feedback, Aderyn and Slither feedback to reflect the removal of the initialization system and the new immutable architecture. (`18194ed`, `c5ff3fd`)
+
+---
+
+## [1.0.0-rc0] — 2026-03-23
+
+Commit: `51c0b3398933268c29c846a82da529bb1eb511ed`
 
 ABDK audit remediation release. All Major and Minor findings addressed; two Moderate findings rejected with documented rationale; one Minor finding not implemented due to compiler limitation.
 
 ### Security
 
-- **CVF-1 (Major)**: Replaced OZ `Initializable` with a wallet-local init guard. The `bool initialized` flag is now co-located in `EntryPointStorage` under the contract's own ERC-7201 namespace (`smartaccount7702.entrypoint`), eliminating any shared-slot collision risk from prior EOA delegations. Added `error AlreadyInitialized()`. Removed `_disableInitializers()` from the constructor — the `msg.sender == address(this)` guard on `initialize()` provides equivalent protection. (`9179aaf`)
+- **CVF-1 (Major)**: Replaced OZ `Initializable` with a wallet-local init guard. The `bool initialized` flag is co-located in `EntryPointStorage` under the contract's own ERC-7201 namespace (`smartaccount7702.entrypoint`), eliminating shared-slot collision risk from prior EOA delegations. Added `error AlreadyInitialized()`. Removed `_disableInitializers()` from the constructor — the `msg.sender == address(this)` guard on `initialize()` provides equivalent protection. (`9179aaf`)
 - **CVF-2 (Moderate)**: `onlyEntryPoint` and `onlyEntryPointOrSelf` now revert with `error NotInitialized()` before performing the caller check, giving operators a clear error when the account has not yet been initialized rather than a misleading `Unauthorized()`. (`84c92fa`)
 
 ### Changed

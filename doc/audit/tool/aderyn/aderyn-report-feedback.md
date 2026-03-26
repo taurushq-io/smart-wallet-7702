@@ -23,7 +23,7 @@ Two findings are new in v1.0.0:
 |---------|---------|
 | **H-1**: Contract locks Ether without a withdraw function | False positive |
 | **L-1**: Unspecific Solidity Pragma (`^0.8.34`) | Acknowledged: intentional (CVF-6) |
-| **L-2**: Empty `require()` / `revert()` statement | Acknowledged: intentional, no error message needed |
+| **L-2**: Empty `require()` / `revert()` statement | Fixed: added `EntryPointAddressZero()` custom error |
 | **L-3**: PUSH0 Opcode | Not applicable: Prague EVM required |
 | **L-4**: Modifier invoked only once (`onlyEntryPoint`) | Acknowledged: intentional design |
 
@@ -65,11 +65,20 @@ Pinning back to an exact version would reintroduce CVF-6.
 > Use descriptive reason strings or custom errors for revert paths.
 > Found: `require(entryPoint_ != address(0))` (line 71).
 
-**Verdict: Acknowledged: intentional, no change**
+**Verdict: Fixed**
 
-This `require` guards the constructor against a zero-address EntryPoint. A custom error was intentionally not added: the constructor runs once at deployment time and the zero-address condition is self-evident from the parameter name `entryPoint_`. Adding a named error (e.g. `ZeroAddressEntryPoint`) would increase bytecode size with no meaningful benefit — the only caller is the deployer, who controls the argument directly and receives an immediate revert with no ambiguity.
+Added `error EntryPointAddressZero()` and updated the constructor guard:
 
-The previous architecture used `AddressZeroForEntryPointNotAllowed()` in `initialize()` because `initialize()` could be called by the EOA at any time after delegation. A constructor guard has no such ambiguity: deployment fails immediately and the deployer retries with a valid address.
+```solidity
+error EntryPointAddressZero();
+
+constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
+    require(entryPoint_ != address(0), EntryPointAddressZero());
+    ENTRY_POINT = entryPoint_;
+}
+```
+
+This gives deployers a clear, grep-able revert reason when `address(0)` is passed. The error name makes the condition self-documenting in revert traces and ABI tooling without relying on the parameter name alone.
 
 ---
 

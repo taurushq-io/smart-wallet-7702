@@ -53,8 +53,10 @@ The entire `EntryPointStorage` struct, ERC-7201 namespace, `initialize()` functi
 ```solidity
 address public immutable ENTRY_POINT;
 
+error EntryPointAddressZero();
+
 constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
-    require(entryPoint_ != address(0));
+    require(entryPoint_ != address(0), EntryPointAddressZero());
     ENTRY_POINT = entryPoint_;
 }
 ```
@@ -346,16 +348,18 @@ The following changes were identified during an independent internal code review
 
 **Description**: When the EntryPoint was set via `initialize()`, passing `address(0)` would permanently brick the account. `onlyEntryPoint` always reverted with `Unauthorized` since `msg.sender` can never equal `address(0)`, with no in-contract remedy. An initial fix added `AddressZeroForEntryPointNotAllowed()` in `initialize()`.
 
-With the move to an immutable constructor parameter (see CVF-1), the guard was relocated to the constructor:
+With the move to an immutable constructor parameter (see CVF-1), the guard was relocated to the constructor with a dedicated custom error:
 
 ```solidity
+error EntryPointAddressZero();
+
 constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
-    require(entryPoint_ != address(0));
+    require(entryPoint_ != address(0), EntryPointAddressZero());
     ENTRY_POINT = entryPoint_;
 }
 ```
 
-Deploying with `address(0)` now reverts at construction time, so no bricked implementation can ever exist. The `AddressZeroForEntryPointNotAllowed` custom error was removed in favor of the built-in `require` revert, as there is no meaningful extra context to attach to a zero-address constructor argument.
+Deploying with `address(0)` now reverts at construction time with `EntryPointAddressZero()`, so no bricked implementation can ever exist. The previous `AddressZeroForEntryPointNotAllowed` error name was replaced with the shorter `EntryPointAddressZero`.
 
 **Commits**: `ef3fd38`: initial guard in `initialize()` (superseded) | `6dc652f`: `Remove initialize and use a constant for the entrypoint` | `8d78988`: `Set entrypoint in an immutable variable`
 
@@ -456,7 +460,7 @@ constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
 
 All EOAs that delegate to the same implementation share the same `ENTRY_POINT` value; there is no per-EOA state to initialize, race, or misconfigure. Upgrading to a different EntryPoint requires deploying a new implementation contract and signing a new EIP-7702 authorization tuple, which is the canonical upgrade path for EIP-7702 accounts.
 
-Removed artifacts: `EntryPointStorage` struct, `ENTRY_POINT_STORAGE_LOCATION` constant, `_getEntryPointStorage()` helper, `initialize()` function, `AlreadyInitialized()` error, `NotInitialized()` error, `AddressZeroForEntryPointNotAllowed()` error, `EntryPointSet` event, `StorageLocation.t.sol` test file, all per-EOA initialization calls across test suites, and five initialization-specific attack tests in `AttackTests.t.sol`.
+Removed artifacts: `EntryPointStorage` struct, `ENTRY_POINT_STORAGE_LOCATION` constant, `_getEntryPointStorage()` helper, `initialize()` function, `AlreadyInitialized()` error, `NotInitialized()` error, `AddressZeroForEntryPointNotAllowed()` error (replaced by `EntryPointAddressZero()`), `EntryPointSet` event, `StorageLocation.t.sol` test file, all per-EOA initialization calls across test suites, and five initialization-specific attack tests in `AttackTests.t.sol`.
 
 A `TSmartAccount7702V09` mock (`test/mocks/TSmartAccount7702V09.sol`) was added for tests targeting the EntryPoint v0.9.0 canonical address (`0x433709009B8330FDa32311DF1C2AFA402eD8D009`):
 

@@ -1,4 +1,4 @@
-# Diff: v0.3.0 (``) → v1.0.0 (`TSmartAccount7702.sol`)
+# Diff: v0.3.0 → v1.0.0 (`TSmartAccount7702.sol`)
 
 This document compares the two versions, flags every behavioral change, and assesses whether any functionality was removed or a bug introduced.
 
@@ -9,7 +9,7 @@ This document compares the two versions, flags every behavioral change, and asse
 | Category | Count |
 |---|---|
 | Security improvements | 5 |
-| Behavioral changes (intentional) | 3 |
+| Behavioral changes (intentional) | 4 |
 | Bug fixes | 1 |
 | Removed functionality | 0 |
 | Bugs introduced | 0 |
@@ -30,7 +30,7 @@ No functionality was removed. No bugs were introduced. All behavioral changes ar
 
 ## 2. Imports
 
-**Removed**: `Initializable` from OZ — consequence of CVF-1 (replaced by wallet-local `initialized` flag).
+**Removed**: `Initializable` from OZ — consequence of removing the entire per-EOA initialization system (see section 7).
 
 **Added**: `IERC165`, `IERC1271`, `IERC721Receiver`, `IERC1155Receiver` — needed to use `type(...).interfaceId` in `supportsInterface` instead of hardcoded magic values (CVF-12).
 
@@ -42,20 +42,23 @@ No functionality was removed. No bugs were introduced. All behavioral changes ar
 |---|---|
 | `ERC7739, SignerEIP7702, IAccount, Initializable` | `ERC7739, SignerEIP7702, IAccount` |
 
-`Initializable` removed (CVF-1). No other base contracts changed.
+`Initializable` removed alongside the entire initialization system.
 
 ---
 
-## 4. New constants
+## 4. Constants and immutables
 
 ```solidity
 // v1.0.0 only
+address public immutable ENTRY_POINT;
 string private constant VERSION = "1.0.0";
 ```
 
-`VERSION` replaces the hardcoded `"0.3.0"` string in `version()` (CVF-11).
+- `ENTRY_POINT` immutable replaces `EntryPointStorage` ERC-7201 storage. The EntryPoint address is now baked into the bytecode at deployment time rather than stored per-EOA.
+- `VERSION` replaces the hardcoded `"0.3.0"` string in `version()` (CVF-11).
+- `ENTRY_POINT_STORAGE_LOCATION` and the entire `EntryPointStorage` struct are absent from v1.0.0.
 
-A `bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001` was introduced as part of CVF-12 but subsequently removed: ERC-7739 defines no new function signatures and therefore has no ERC-165 interface ID. The `0x77390001` value is the detection sentinel for `isValidSignature`, not a computed interface ID. It is absent from v1.0.0.
+A `bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001` was introduced as part of CVF-12 but subsequently removed: ERC-7739 defines no new function signatures and therefore has no ERC-165 interface ID. It is absent from v1.0.0.
 
 ---
 
@@ -64,35 +67,42 @@ A `bytes4 private constant ERC7739_INTERFACE_ID = 0x77390001` was introduced as 
 | v0.3.0 | v1.0.0 |
 |---|---|
 | `error Unauthorized()` | `error Unauthorized(address caller)` |
-| _(none)_ | `error AlreadyInitialized()` |
-| _(none)_ | `error NotInitialized()` |
-| _(none)_ | `error AddressZeroForEntryPointNotAllowed()` |
+| _(none)_ | `error EntryPointAddressZero()` |
+| _(none)_ | `error EmptyBytecode()` |
 
 `Unauthorized` now carries the offending `caller` address. This changes the ABI selector — off-chain tooling or tests that decode the old `Unauthorized()` selector (`0x82b42900`) will not match the new `Unauthorized(address)` selector (`0x8e4a23d6`). No security regression; improved debuggability.
 
----
+`EntryPointAddressZero()` is thrown by the constructor when `address(0)` is passed as the EntryPoint.
 
-## 6. `EntryPointStorage` struct
-
-| v0.3.0 | v1.0.0 |
-|---|---|
-| `{ address entryPoint; }` | `{ address entryPoint; bool initialized; }` |
-
-The `bool initialized` flag was added to replace OZ `Initializable`'s `_initialized` counter (CVF-1). Both fields are packed in the same 32-byte slot — no extra storage slot consumed.
+The following errors present in intermediate rc0 state are absent from the final v1.0.0: `AlreadyInitialized()`, `NotInitialized()`, `AddressZeroForEntryPointNotAllowed()`.
 
 ---
 
-## 7. Constructor
+## 6. Constructor — BEHAVIORAL CHANGE
 
-| v0.3.0 | v1.0.0 |
-|---|---|
-| Calls `_disableInitializers()` | Empty body |
+### v0.3.0
+```solidity
+constructor() EIP712("TSmart Account 7702", "1") {
+    _disableInitializers();
+}
+```
 
-`_disableInitializers()` was removed as a side effect of removing `Initializable`. The protection is now provided by `require(msg.sender == address(this), ...)` in `initialize()`, which can never be satisfied by an external caller on the bare implementation.
+### v1.0.0
+```solidity
+constructor(address entryPoint_) EIP712("TSmart Account 7702", "1") {
+    require(entryPoint_ != address(0), EntryPointAddressZero());
+    ENTRY_POINT = entryPoint_;
+}
+```
+
+**Changes:**
+- Constructor now accepts `entryPoint_` and sets the `ENTRY_POINT` immutable. The EntryPoint address is fixed for all EOAs delegating to this implementation.
+- `_disableInitializers()` removed — it belonged to `Initializable`, which is no longer inherited.
+- Zero-address guard added: passing `address(0)` reverts with `EntryPointAddressZero()` at construction time (CR-1).
 
 ---
 
-## 8. `initialize()` — SECURITY IMPROVEMENTS
+## 7. `initialize()` — REMOVED
 
 ### v0.3.0
 ```solidity
@@ -104,26 +114,16 @@ function initialize(address entryPoint_) external initializer {
 ```
 
 ### v1.0.0
-```solidity
-function initialize(address entryPoint_) external {
-    require(msg.sender == address(this), Unauthorized(msg.sender));
-    require(entryPoint_ != address(0), AddressZeroForEntryPointNotAllowed());
-    EntryPointStorage storage $ = _getEntryPointStorage();
-    require(!$.initialized, AlreadyInitialized());
-    $.initialized = true;
-    $.entryPoint = entryPoint_;
-    emit EntryPointSet(entryPoint_);
-}
-```
 
-**Changes:**
-- OZ `initializer` modifier replaced by wallet-local `$.initialized` flag (CVF-1 — avoids shared slot collision with other OZ `Initializable` contracts).
-- `address(0)` guard added: `initialize(address(0))` now reverts with `AddressZeroForEntryPointNotAllowed()` instead of silently setting a zero EntryPoint that makes the wallet permanently inert.
-- `AlreadyInitialized()` error replaces the silent OZ revert on double-init — gives a clear diagnostic.
+Function removed entirely, along with `EntryPointStorage`, `ENTRY_POINT_STORAGE_LOCATION`, `_getEntryPointStorage()`, `event EntryPointSet`, and associated errors.
+
+**Rationale**: The `initialize()` approach required the EOA to submit its own initialization transaction after delegation, preventing sponsorship by a third party. It also created a gap between delegation and initialization during which UserOps would fail. Moving the EntryPoint to a constructor immutable eliminates both constraints: the account is immediately operational after delegation with no further steps.
+
+The function signature is gone from v1.0.0. This is not a removal of capability — the EntryPoint is still configured, but at implementation deployment time rather than per-EOA.
 
 ---
 
-## 9. Access control modifiers — BEHAVIORAL CHANGE
+## 8. Access control modifiers — BEHAVIORAL CHANGE
 
 ### v0.3.0
 ```solidity
@@ -140,26 +140,24 @@ modifier onlyEntryPointOrSelf() {
 ### v1.0.0
 ```solidity
 modifier onlyEntryPoint() {
-    EntryPointStorage storage $ = _getEntryPointStorage();
-    require($.initialized, NotInitialized());
-    require(msg.sender == $.entryPoint, Unauthorized(msg.sender));
+    require(msg.sender == ENTRY_POINT, Unauthorized(msg.sender));
     _;
 }
 modifier onlyEntryPointOrSelf() {
-    EntryPointStorage storage $ = _getEntryPointStorage();
-    require($.initialized, NotInitialized());
-    require(msg.sender == $.entryPoint || msg.sender == address(this), Unauthorized(msg.sender));
+    require(msg.sender == ENTRY_POINT || msg.sender == address(this), Unauthorized(msg.sender));
     _;
 }
 ```
 
-**Changes (CVF-2):**
-- Both modifiers now check `$.initialized` first and revert with `NotInitialized()` if not yet initialized, instead of silently reverting with `Unauthorized()` (which was misleading when the root cause was missing initialization).
-- **Behavioral change for `onlyEntryPointOrSelf`**: In v0.3.0, a direct EOA self-call (`msg.sender == address(this)`) to `execute()` or `deployDeterministic()` would have passed the modifier even before `initialize()` was called (since the EOA check is independent of initialization state). In v1.0.0, all access-controlled functions are blocked until initialization — including direct self-calls. This is intentional and correct: calling `execute()` before the EntryPoint is set is meaningless.
+**Changes:**
+- Both modifiers read `ENTRY_POINT` immutable directly instead of calling `entryPoint()` virtual. This prevents a subclass override of `entryPoint()` from silently bypassing the authorization check.
+- `Unauthorized` now carries `msg.sender` (CVF-8).
+- The `NotInitialized()` pre-check introduced in rc0 is absent: with an immutable, the EntryPoint is always set, so there is no uninitialized state to check.
+- **Behavioral change for `onlyEntryPointOrSelf`**: In v0.3.0, a direct EOA self-call (`msg.sender == address(this)`) to `execute()` or `deployDeterministic()` could succeed even before `initialize()` was called (the self-check is independent of EntryPoint state). In v1.0.0, the ENTRY_POINT immutable is always set at deployment, so both branches of the modifier are always well-defined.
 
 ---
 
-## 10. `validateUserOp()` — SECURITY IMPROVEMENT
+## 9. `validateUserOp()` — SECURITY IMPROVEMENT
 
 ### v0.3.0 order
 1. Pay `missingAccountFunds` to EntryPoint
@@ -169,11 +167,11 @@ modifier onlyEntryPointOrSelf() {
 1. Validate signature → return 1 if invalid
 2. Pay `missingAccountFunds` to EntryPoint
 
-**Impact**: In v0.3.0, an invalid signature still triggered an ETH transfer to the EntryPoint before returning `SIG_VALIDATION_FAILED`. In v1.0.0, no ETH is sent when the signature is invalid. Since `_rawSignatureValidation` is ecrecover-based and never reverts (only returns `true`/`false`), this reordering is safe. The account avoids unnecessary ETH exposure on failing UserOps.
+**Impact**: In v0.3.0, an invalid signature still triggered an ETH transfer to the EntryPoint before returning `SIG_VALIDATION_FAILED`. In v1.0.0, no ETH is sent when the signature is invalid. Since `_rawSignatureValidation` is ecrecover-based and never reverts (only returns `true`/`false`), this reordering is safe. The account avoids unnecessary ETH exposure on failing UserOps (CR-6).
 
 ---
 
-## 11. `supportsInterface()` — BUG FIX
+## 10. `supportsInterface()` — BUG FIX
 
 ### v0.3.0
 ```solidity
@@ -193,7 +191,7 @@ ERC-7739 was also removed from `supportsInterface`: it defines no new function s
 
 ---
 
-## 12. Token receiver callbacks — return value expression
+## 11. Token receiver callbacks — return value expression
 
 | v0.3.0 | v1.0.0 |
 |---|---|
@@ -205,7 +203,7 @@ Same class of issue as CVF-12: hardcoded `bytes4` literals replaced with `.selec
 
 ---
 
-## 13. `version()` return value
+## 12. `version()` return value
 
 | v0.3.0 | v1.0.0 |
 |---|---|
@@ -213,17 +211,17 @@ Same class of issue as CVF-12: hardcoded `bytes4` literals replaced with `.selec
 
 ---
 
-## 14. `deployDeterministic()` empty bytecode check style
+## 13. `deployDeterministic()` empty bytecode check style
 
 | v0.3.0 | v1.0.0 |
 |---|---|
 | `if (creationCode.length == 0) revert EmptyBytecode();` | `require(creationCode.length != 0, EmptyBytecode());` |
 
-Identical bytecode output. Style change only (consistent with the rest of the contract).
+Identical bytecode output. Style change only — consistent with the rest of the contract.
 
 ---
 
-## 15. Re-entrancy NatSpec
+## 14. Re-entrancy NatSpec
 
 v1.0.0 adds a contract-level `@dev` paragraph documenting the re-entrancy protection model:
 
@@ -235,11 +233,14 @@ No code change — documentation only.
 
 ## Conclusion
 
-All public functions present in v0.3.0 are present in v1.0.0 with the same signatures (except `Unauthorized` error selector change). No functionality was removed. The key improvements are:
+All public functions present in v0.3.0 are present in v1.0.0 with the same signatures, except:
+- `Unauthorized` error selector changed (`0x82b42900` → `0x8e4a23d6`).
+- `initialize()` is gone; the EntryPoint is now configured at implementation deployment, not per-EOA.
 
-1. **CVF-1**: Storage slot collision risk eliminated — wallet-local `initialized` flag replaces shared OZ slot.
-2. **CVF-2**: `NotInitialized()` error gives actionable diagnostics when modifiers fire pre-init.
-3. **CVF-6**: Flexible pragma allows patch compiler updates.
-4. **CVF-12**: `supportsInterface` uses `type(...).interfaceId` — fixes wrong `IAccount` interface ID.
-5. **CR-1**: `address(0)` guard on `initialize()`.
-6. **CR-6**: Signature validated before prefund payment.
+No functionality was removed. The key improvements are:
+
+1. **Immutable EntryPoint**: Eliminates the per-EOA initialization window and sponsorship limitation. The account is operational immediately after delegation.
+2. **CR-6**: Signature validated before prefund payment — no ETH sent on invalid-signature UserOps.
+3. **CR-1**: `EntryPointAddressZero()` guard in the constructor.
+4. **CVF-6**: Flexible pragma allows patch compiler updates.
+5. **CVF-12 + bug fix**: `supportsInterface` uses `type(...).interfaceId` — fixes the wrong `IAccount` interface ID (`0x3a871cdd` → `0x19822f7c`).
