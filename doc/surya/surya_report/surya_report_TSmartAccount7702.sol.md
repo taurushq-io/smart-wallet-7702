@@ -5,7 +5,7 @@
 
 |  File Name  |  SHA-1 Hash  |
 |-------------|--------------|
-| ./TSmartAccount7702.sol | 270acff5e5df391762b703e987a7bb8452bc7c6b |
+| ./TSmartAccount7702.sol | 6407a880f2907e7c693b664acc190d1a951cb96d |
 
 
 ### Contracts Description Table
@@ -15,15 +15,13 @@
 |:----------:|:-------------------:|:----------------:|:----------------:|:---------------:|
 |     └      |  **Function Name**  |  **Visibility**  |  **Mutability**  |  **Modifiers**  |
 ||||||
-| **TSmartAccount7702** | Implementation | ERC7739, SignerEIP7702, IAccount, Initializable |||
+| **TSmartAccount7702** | Implementation | ERC7739, SignerEIP7702, IAccount |||
 | └ | <Constructor> | Public ❗️ | 🛑  | EIP712 |
-| └ | initialize | External ❗️ | 🛑  | initializer |
 | └ | validateUserOp | External ❗️ | 🛑  | onlyEntryPoint |
 | └ | execute | External ❗️ |  💵 | onlyEntryPointOrSelf |
 | └ | deployDeterministic | External ❗️ |  💵 | onlyEntryPointOrSelf |
 | └ | version | External ❗️ |   |NO❗️ |
 | └ | entryPoint | Public ❗️ |   |NO❗️ |
-| └ | _getEntryPointStorage | Private 🔐 |   | |
 | └ | supportsInterface | Public ❗️ |   |NO❗️ |
 | └ | onERC721Received | External ❗️ |   |NO❗️ |
 | └ | onERC1155Received | External ❗️ |   |NO❗️ |

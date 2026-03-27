@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 abstract contract TestVersionBase is SmartWalletTestBase {
     function test_version() public view {
-        assertEq(account.version(), "0.3.0");
+        assertEq(account.version(), "1.0.0");
     }
 }
 

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
-import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {SmartWalletTestBase} from "../TSmartAccount7702/SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "../TSmartAccount7702/entrypoint/UseEntryPointV09.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
-import {SmartWalletTestBase} from "../TSmartAccount7702/SmartWalletTestBase.sol";
-import {UseEntryPointV09} from "../TSmartAccount7702/entrypoint/UseEntryPointV09.sol";
 
 /// @title EndToEndPaymasterTest
 /// @notice Gas profiling with a paymaster — reflects production costs more accurately
@@ -34,8 +34,8 @@ contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
 
         // Deploy and mint USDC tokens
         usdc = new MockERC20("USD Coin", "USDC", 6);
-        usdc.mint(address(account), 10000e6);
-        usdc.mint(eoaUser, 10000e6);
+        usdc.mint(address(account), 10_000e6);
+        usdc.mint(eoaUser, 10_000e6);
 
         target = new MockTarget();
 
@@ -55,9 +55,8 @@ contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
         vm.deal(address(0x1234), 1 wei);
         uint256 recipientBefore = address(0x1234).balance;
 
-        PackedUserOperation memory op = _buildPaymasterOp(
-            abi.encodeCall(TSmartAccount7702.execute, (address(0x1234), 1 ether, ""))
-        );
+        PackedUserOperation memory op =
+            _buildPaymasterOp(abi.encodeCall(TSmartAccount7702.execute, (address(0x1234), 1 ether, "")));
 
         bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
         console2.log("test_transfer_native Paymaster calldata size:", handleOpsCalldata.length);
@@ -110,9 +109,7 @@ contract EndToEndPaymasterTest is SmartWalletTestBase, UseEntryPointV09 {
 
         // paymasterAndData = paymaster address (20 bytes) + verificationGasLimit (16 bytes) + postOpGasLimit (16 bytes)
         bytes memory paymasterAndData = abi.encodePacked(
-            address(paymaster),
-            uint128(paymasterVerificationGasLimit),
-            uint128(paymasterPostOpGasLimit)
+            address(paymaster), uint128(paymasterVerificationGasLimit), uint128(paymasterPostOpGasLimit)
         );
 
         op = PackedUserOperation({

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {WalkthroughBase} from "./WalkthroughBase.sol";
 
@@ -16,7 +16,7 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 ///
 ///      1. Deploy the EntryPoint singleton and the TSmartAccount7702 implementation
 ///      2. An EOA delegates its code to TSmartAccount7702 via EIP-7702
-///      3. The EOA calls initialize(entryPoint) to configure its trusted EntryPoint
+///      3. The EOA delegates its code to TSmartAccount7702 via EIP-7702
 ///      4. A dApp builds a UserOperation for an ERC-20 transfer (gasFees = 0)
 ///      5. The EOA's private key signs the UserOperation hash
 ///      6. A bundler submits the UserOperation to the EntryPoint
@@ -28,11 +28,10 @@ import {WalkthroughBase} from "./WalkthroughBase.sol";
 contract WalkthroughSimpleTest is WalkthroughBase {
     function test_walkthrough_erc20Transfer_simple() public {
         // -------------------------------------------------------------------
-        // STEP 1–3: Deploy, delegate, initialize
+        // STEP 1–2: Deploy infrastructure and delegate via EIP-7702
         // -------------------------------------------------------------------
         _deployInfrastructure();
         _delegateVia7702();
-        _initializeAccount();
 
         // -------------------------------------------------------------------
         // STEP 4: Build the UserOperation
@@ -56,8 +55,8 @@ contract WalkthroughSimpleTest is WalkthroughBase {
             callData: executeCall,
             accountGasLimits: bytes32(uint256(1_000_000) << 128 | uint256(1_000_000)),
             preVerificationGas: 0,
-            gasFees: bytes32(0),             // No gas fees — simplified walkthrough
-            paymasterAndData: "",            // No paymaster in this simplified version
+            gasFees: bytes32(0), // No gas fees — simplified walkthrough
+            paymasterAndData: "", // No paymaster in this simplified version
             signature: ""
         });
 

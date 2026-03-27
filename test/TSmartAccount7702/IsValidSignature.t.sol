@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 contract TestIsValidSignature is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {console2} from "forge-std/Test.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {console2} from "forge-std/Test.sol";
 
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockPaymaster} from "../mocks/MockPaymaster.sol";
@@ -44,12 +44,11 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
     function test_walkthrough_deployContract_CREATE2() public {
         // -------------------------------------------------------------------
-        // STEP 1-3: Deploy infrastructure, delegate, initialize
+        // STEP 1-2: Deploy infrastructure and delegate via EIP-7702
         // -------------------------------------------------------------------
         _deployInfrastructure();
         _setupPaymaster();
         _delegateVia7702();
-        _initializeAccount();
 
         // -------------------------------------------------------------------
         // STEP 4: Build the UserOp — deploy WalkthroughStorage via CREATE2
@@ -68,10 +67,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         uint256 initialValue = 100;
         bytes32 salt = bytes32(uint256(0xdeadbeef));
 
-        bytes memory creationCode = abi.encodePacked(
-            type(WalkthroughStorage).creationCode,
-            abi.encode(initialValue)
-        );
+        bytes memory creationCode = abi.encodePacked(type(WalkthroughStorage).creationCode, abi.encode(initialValue));
 
         // Pre-compute the deterministic address BEFORE deployment
         // This is one of the key benefits of CREATE2
@@ -85,10 +81,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         assertTrue(predictedAddr.code.length == 0, "Address should be empty before deploy");
 
         // Encode: smartAccount.deployDeterministic(0, creationCode, salt)
-        bytes memory deployCall = abi.encodeCall(
-            TSmartAccount7702.deployDeterministic,
-            (0, creationCode, salt)
-        );
+        bytes memory deployCall = abi.encodeCall(TSmartAccount7702.deployDeterministic, (0, creationCode, salt));
 
         PackedUserOperation memory userOp = _buildPaymasterUserOp(deployCall);
 
@@ -133,7 +126,6 @@ contract WalkthroughDeployTest is WalkthroughBase {
         _deployInfrastructure();
         _setupPaymaster();
         _delegateVia7702();
-        _initializeAccount();
 
         // --- UserOp 1: Deploy WalkthroughStorage via CREATE2 ---
         console2.log("");
@@ -141,10 +133,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
 
         uint256 initialValue = 1;
         bytes32 salt = bytes32(uint256(0xcafe));
-        bytes memory creationCode = abi.encodePacked(
-            type(WalkthroughStorage).creationCode,
-            abi.encode(initialValue)
-        );
+        bytes memory creationCode = abi.encodePacked(type(WalkthroughStorage).creationCode, abi.encode(initialValue));
 
         // Pre-compute the deterministic address
         address predicted = computeCreate2Address(salt, keccak256(creationCode), alice);
@@ -163,10 +152,7 @@ contract WalkthroughDeployTest is WalkthroughBase {
         console2.log("--- UserOp 2: Interact with deployed contract ---");
 
         bytes memory setValueCall = abi.encodeCall(WalkthroughStorage.setValue, (999));
-        bytes memory executeCall = abi.encodeCall(
-            TSmartAccount7702.execute,
-            (deployed, 0, setValueCall)
-        );
+        bytes memory executeCall = abi.encodeCall(TSmartAccount7702.execute, (deployed, 0, setValueCall));
 
         // The EntryPoint nonce key stays 0; the sequence number auto-increments
         PackedUserOperation memory userOp2 = _buildPaymasterUserOp(executeCall);
@@ -205,8 +191,8 @@ contract WalkthroughDeployTest is WalkthroughBase {
     {
         bytes memory paymasterAndData = abi.encodePacked(
             address(paymaster),
-            uint128(500_000),  // paymaster verification gas
-            uint128(50_000)    // paymaster post-op gas
+            uint128(500_000), // paymaster verification gas
+            uint128(50_000) // paymaster post-op gas
         );
 
         return PackedUserOperation({

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
+import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {SimpleStorage} from "../mocks/SimpleStorage.sol";
 import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
-import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 /// @dev Contract whose constructor always reverts.
 contract RevertingConstructor {
@@ -15,7 +15,6 @@ contract RevertingConstructor {
 
 /// @dev Abstract test logic for deployDeterministic(). Concrete classes provide the EntryPoint version.
 abstract contract TestDeployBase is SmartWalletTestBase {
-
     function test_deployDeterministic_succeeds() public {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(42)));
         bytes32 salt = bytes32(uint256(0x1234));
@@ -88,9 +87,10 @@ abstract contract TestDeployBase is SmartWalletTestBase {
 
     function test_deployDeterministic_revertsWhenNotAuthorized() public {
         bytes memory creationCode = abi.encodePacked(type(SimpleStorage).creationCode, abi.encode(uint256(1)));
+        address randomCaller = makeAddr("random");
 
-        vm.prank(makeAddr("random"));
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.prank(randomCaller);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, randomCaller));
         account.deployDeterministic(0, creationCode, bytes32(0));
     }
 

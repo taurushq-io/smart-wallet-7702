@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {MockTarget} from "../mocks/MockTarget.sol";
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {MockTarget} from "../mocks/MockTarget.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 
 /// @dev Abstract test logic for execute(). Concrete classes provide the EntryPoint version.
 abstract contract TestExecuteBase is SmartWalletTestBase {
@@ -23,8 +23,9 @@ abstract contract TestExecuteBase is SmartWalletTestBase {
         assertEq(target.balance, 123);
 
         // Random address should be rejected
-        vm.prank(makeAddr("random"));
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        address randomCaller = makeAddr("random");
+        vm.prank(randomCaller);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, randomCaller));
         account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
 
         // Reverts from target should bubble up

@@ -17,11 +17,9 @@ contract ERC1271Test is Test {
         (signer, signerPrivateKey) = makeAddrAndKey("alice");
 
         // Simulate EIP-7702 delegation
-        TSmartAccount7702 impl = new TSmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
         vm.etch(signer, address(impl).code);
         account = TSmartAccount7702(payable(signer));
-        vm.prank(signer);
-        account.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
     }
 
     function test_returnsExpectedDomainValues() public view {
@@ -47,12 +45,9 @@ contract ERC1271Test is Test {
     function test_isValidSignature_erc7739_rejectsReplay() public {
         // Two different accounts should reject each other's signatures (anti-replay via domain binding)
         address otherSigner = makeAddr("bob");
-        TSmartAccount7702 impl2 = new TSmartAccount7702();
+        TSmartAccount7702 impl2 = new TSmartAccount7702(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108);
         vm.etch(otherSigner, address(impl2).code);
         TSmartAccount7702 otherAccount = TSmartAccount7702(payable(otherSigner));
-        vm.prank(otherSigner);
-        otherAccount.initialize(address(0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108));
-
         bytes32 appHash = keccak256("test message");
 
         // Sign for `account` using the PersonalSign path

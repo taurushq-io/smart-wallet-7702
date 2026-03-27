@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
+import {MockERC20} from "../mocks/MockERC20.sol";
+import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
+import {SimpleStorage} from "../mocks/SimpleStorage.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
-import {MockERC20} from "../mocks/MockERC20.sol";
-import {SimpleStorage} from "../mocks/SimpleStorage.sol";
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 
 /// @title TestFuzz
 ///
@@ -25,6 +25,13 @@ import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 ///      - supportsInterface: known vs unknown interface IDs
 contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     MockEntryPoint mockEp;
+    // Reserved by forge-std console tracing. Calls to this address are decoded as ConsoleCalls.
+    address internal constant FORGE_CONSOLE_ADDRESS = 0x000000000000000000636F6e736F6c652e6c6f67;
+    bytes4 internal constant IACCOUNT_INTERFACE_ID = 0x19822f7c;
+    bytes4 internal constant IERC1271_INTERFACE_ID = 0x1626ba7e;
+    bytes4 internal constant IERC721RECEIVER_INTERFACE_ID = 0x150b7a02;
+    bytes4 internal constant IERC1155RECEIVER_INTERFACE_ID = 0x4e2312e0;
+    bytes4 internal constant IERC165_INTERFACE_ID = 0x01ffc9a7;
 
     /// @dev Must match OZ's ERC7739Utils.PERSONAL_SIGN_TYPEHASH
     bytes32 internal constant PERSONAL_SIGN_TYPEHASH = keccak256("PersonalSign(bytes prefixed)");
@@ -175,6 +182,7 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         amount = bound(amount, 0, 100 ether);
         vm.assume(recipient != address(0));
         vm.assume(recipient != address(account));
+        vm.assume(recipient != FORGE_CONSOLE_ADDRESS);
         // Exclude precompiles and system addresses (Prague EVM has precompiles up to 0x0b+)
         vm.assume(uint160(recipient) > 0xff);
         vm.assume(recipient != account.entryPoint());
@@ -214,15 +222,26 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     // =====================================================================
 
     /// @dev Known supported interface IDs must return true.
-    ///      Uses `type(Interface).interfaceId` so the test independently verifies the source values.
+    ///      Uses explicit bytes4 constants and cross-checks them against `type(...).interfaceId`
+    ///      for standard interfaces to avoid mirroring source implementation.
     function test_supportsInterface_knownIds() public view {
-        bytes4[6] memory supported = [
-            type(IAccount).interfaceId,
-            type(IERC1271).interfaceId,
-            bytes4(0x77390001), // ERC-7739 (no standard OZ interface)
-            type(IERC721Receiver).interfaceId,
-            type(IERC1155Receiver).interfaceId,
-            type(IERC165).interfaceId
+        assertEq(type(IAccount).interfaceId, IACCOUNT_INTERFACE_ID, "IAccount interfaceId mismatch");
+        assertEq(type(IERC1271).interfaceId, IERC1271_INTERFACE_ID, "IERC1271 interfaceId mismatch");
+        assertEq(
+            type(IERC721Receiver).interfaceId, IERC721RECEIVER_INTERFACE_ID, "IERC721Receiver interfaceId mismatch"
+        );
+        assertEq(
+            type(IERC1155Receiver).interfaceId, IERC1155RECEIVER_INTERFACE_ID, "IERC1155Receiver interfaceId mismatch"
+        );
+        assertEq(type(IERC165).interfaceId, IERC165_INTERFACE_ID, "IERC165 interfaceId mismatch");
+
+        // ERC-7739 has no ERC-165 interface ID — detection is via isValidSignature(magic, "") not supportsInterface
+        bytes4[5] memory supported = [
+            IACCOUNT_INTERFACE_ID,
+            IERC1271_INTERFACE_ID,
+            IERC721RECEIVER_INTERFACE_ID,
+            IERC1155RECEIVER_INTERFACE_ID,
+            IERC165_INTERFACE_ID
         ];
         for (uint256 i; i < supported.length; i++) {
             assertTrue(account.supportsInterface(supported[i]), "known interface should be supported");
@@ -232,12 +251,11 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
     /// @dev Random interface IDs (excluding known ones) must return false.
     function testFuzz_supportsInterface_unknownId(bytes4 interfaceId) public view {
         // Exclude all known supported interfaces
-        vm.assume(interfaceId != type(IAccount).interfaceId);
-        vm.assume(interfaceId != type(IERC1271).interfaceId);
-        vm.assume(interfaceId != bytes4(0x77390001)); // ERC-7739 (no standard OZ interface)
-        vm.assume(interfaceId != type(IERC721Receiver).interfaceId);
-        vm.assume(interfaceId != type(IERC1155Receiver).interfaceId);
-        vm.assume(interfaceId != type(IERC165).interfaceId);
+        vm.assume(interfaceId != IACCOUNT_INTERFACE_ID);
+        vm.assume(interfaceId != IERC1271_INTERFACE_ID);
+        vm.assume(interfaceId != IERC721RECEIVER_INTERFACE_ID);
+        vm.assume(interfaceId != IERC1155RECEIVER_INTERFACE_ID);
+        vm.assume(interfaceId != IERC165_INTERFACE_ID);
 
         assertFalse(account.supportsInterface(interfaceId), "unknown interface should not be supported");
     }
@@ -271,22 +289,19 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
             )
         );
 
-        bytes32 contentsHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, address(account), spender, value, nonce, deadline));
+        bytes32 contentsHash = keccak256(abi.encode(PERMIT_TYPEHASH, address(account), spender, value, nonce, deadline));
 
         bytes32 appHash = keccak256(abi.encodePacked("\x19\x01", appDomainSeparator, contentsHash));
 
         string memory contentsDescr =
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)";
 
-        bytes memory domainBytes = abi.encode(
-            keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0)
-        );
+        bytes memory domainBytes =
+            abi.encode(keccak256("TSmart Account 7702"), keccak256("1"), block.chainid, address(account), bytes32(0));
 
         bytes32 typedDataSignTypehash = keccak256(
             abi.encodePacked(
-                "TypedDataSign("
-                "Permit"
+                "TypedDataSign(" "Permit"
                 " contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
             )
@@ -298,7 +313,11 @@ contract TestFuzz is SmartWalletTestBase, UseEntryPointV09 {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
 
         bytes memory encodedSig = abi.encodePacked(
-            abi.encodePacked(r, s, v), appDomainSeparator, contentsHash, contentsDescr, uint16(bytes(contentsDescr).length)
+            abi.encodePacked(r, s, v),
+            appDomainSeparator,
+            contentsHash,
+            contentsDescr,
+            uint16(bytes(contentsDescr).length)
         );
 
         bytes4 result = account.isValidSignature(appHash, encodedSig);

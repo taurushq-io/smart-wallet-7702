@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {Test, console2} from "forge-std/Test.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
 import {MockERC20} from "../mocks/MockERC20.sol";
@@ -68,7 +68,7 @@ abstract contract WalkthroughBase is Test {
         vm.etch(address(entryPoint), address(ep).code);
         console2.log("EntryPoint deployed at:", address(entryPoint));
 
-        implementation = new TSmartAccount7702();
+        implementation = new TSmartAccount7702(address(entryPoint));
         console2.log("Implementation deployed at:", address(implementation));
 
         usdc = new MockERC20("USD Coin", "USDC", 6);
@@ -87,17 +87,6 @@ abstract contract WalkthroughBase is Test {
         console2.log("Alice's EOA now has TSmartAccount7702 code");
         console2.log("Alice's address:", alice);
         console2.log("Has code:", alice.code.length > 0);
-    }
-
-    /// @dev Calls initialize(entryPoint) to configure the account's trusted EntryPoint.
-    ///      Pure setup — does not assert re-initialization behavior (see AttackTests for that).
-    function _initializeAccount() internal {
-        console2.log("");
-        console2.log("--- STEP 3: Initialize ---");
-
-        vm.prank(alice);
-        smartAccount.initialize(address(entryPoint));
-        console2.log("EntryPoint set to:", smartAccount.entryPoint());
     }
 
     /// @dev Encodes the callData for an ERC-20 transfer: execute(usdc.transfer(bob, 100 USDC)).

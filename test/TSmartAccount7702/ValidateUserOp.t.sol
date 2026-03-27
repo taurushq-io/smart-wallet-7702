@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
-import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
-import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
 import {TSmartAccount7702} from "../../src/TSmartAccount7702.sol";
+import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
+import {SmartWalletTestBase} from "./SmartWalletTestBase.sol";
+import {UseEntryPointV09} from "./entrypoint/UseEntryPointV09.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 /// @dev Abstract test logic for validateUserOp(). Concrete classes provide the EntryPoint version.
@@ -47,7 +47,7 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
         userOp.signature = abi.encodePacked(bytes32(0), bytes32(0), uint8(27));
 
         // Calling directly (not from EntryPoint) should revert
-        vm.expectRevert(TSmartAccount7702.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSelector(TSmartAccount7702.Unauthorized.selector, address(this)));
         account.validateUserOp(userOp, keccak256("123"), 0);
     }
 
@@ -65,7 +65,8 @@ abstract contract TestValidateUserOpBase is SmartWalletTestBase {
         assertEq(ep.validateUserOp(address(account), userOp, userOpHash, 0), 1);
     }
 
-    // ─── Self-funded (no paymaster) tests ────────────────────────────
+    // ─── Self-funded (no paymaster) tests
+    // ────────────────────────────
 
     /// @dev When missingAccountFunds > 0, the account pays the EntryPoint from its ETH balance.
     function test_paysPrefund_whenNoPaymaster() public {

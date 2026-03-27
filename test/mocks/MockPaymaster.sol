@@ -2,9 +2,9 @@
 pragma solidity ^0.8.34;
 
 import {BasePaymaster} from "account-abstraction/core/BasePaymaster.sol";
+import {SIG_VALIDATION_SUCCESS} from "account-abstraction/core/Helpers.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {SIG_VALIDATION_SUCCESS} from "account-abstraction/core/Helpers.sol";
 
 /// @title MockPaymaster
 ///
@@ -25,11 +25,12 @@ contract MockPaymaster is BasePaymaster {
 
     /// @dev Accepts every UserOperation. Returns empty context (no postOp needed)
     ///      and SIG_VALIDATION_SUCCESS (0) to indicate the paymaster agrees to pay.
-    function _validatePaymasterUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 maxCost
-    ) internal pure override returns (bytes memory context, uint256 validationData) {
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
+        internal
+        pure
+        override
+        returns (bytes memory context, uint256 validationData)
+    {
         (userOp, userOpHash, maxCost);
         return ("", SIG_VALIDATION_SUCCESS);
     }

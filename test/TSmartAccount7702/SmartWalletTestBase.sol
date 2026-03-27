@@ -34,11 +34,9 @@ abstract contract SmartWalletTestBase is Test {
         // bytecode (including immutables) onto the signer's EOA. This makes
         // address(this) == signer when the contract code runs, which is exactly what
         // happens with a real 7702 authorization tuple.
-        TSmartAccount7702 impl = new TSmartAccount7702();
+        TSmartAccount7702 impl = new TSmartAccount7702(address(entryPoint));
         vm.etch(signer, address(impl).code);
         account = TSmartAccount7702(payable(signer));
-        vm.prank(signer);
-        account.initialize(address(entryPoint));
     }
 
     function _sendUserOperation(PackedUserOperation memory userOp) internal {
