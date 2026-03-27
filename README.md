@@ -413,6 +413,38 @@ forge script script/DeployTSmartAccount7702.s.sol --rpc-url $RPC_URL --account $
 
 A detailed diff between v0.3.0 and v1.0.0, covering all behavioral changes, security improvements, and the `supportsInterface` bug fix, is available at [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
 
+### ABDK
+
+**Auditors**: [ABDK Consulting](https://abdk.consulting)
+**Scope**: `TSmartAccount7702.sol` at [`v0.3.0`](https://github.com/taurushq-io/smart-wallet-7702/tree/v0.3.0), fixes verified at [`v1.0.0-rc1`](https://github.com/taurushq-io/smart-wallet-7702/tree/v1.0.0-rc1)
+**Report**: [`doc/audit/abdk/ABDK Smart Account Audit report.pdf`](doc/audit/abdk/ABDK%20Smart%20Account%20Audit%20report.pdf) — Report 1.0
+**Client response** (draft): [`doc/audit/abdk/taurus-reportv0.3.0-feedback.md`](doc/audit/abdk/taurus-reportv0.3.0-feedback.md)
+
+**Result: 9 out of 11 issues fixed.**
+
+| Severity | Found | Fixed |
+|----------|-------|-------|
+| Major | 1 | 1 |
+| Moderate | 3 | 2 |
+| Minor | 7 | 6 |
+
+| ID | Severity | Title | Status |
+|----|----------|-------|--------|
+| CVF-1 | Major | Storage collision via OZ `Initializable` under EIP-7702 delegation | Fixed: EntryPoint moved to immutable constructor parameter, initialization removed entirely |
+| CVF-2 | Moderate | `onlyEntryPoint` / `onlyEntryPointOrSelf` modifiers lack initialization check | Fixed: superseded by CVF-1 fix (no uninitialized state exists) |
+| CVF-3 | Moderate | Inaccurate NatSpec on `_call` ("without copying to memory") | Fixed: comment corrected |
+| CVF-4 | Moderate | `_call` silently drops return data from nested calls | Acknowledged: intentional for ERC-4337 EntryPoint compatibility; `execute` is `virtual` |
+| CVF-5 | Moderate | Raw revert forwarding obscures error origin | Rejected: wrapping would break ERC-4337 bundlers and off-chain tooling |
+| CVF-6 | Minor | Exact compiler version pragma (`0.8.34`) | Fixed: relaxed to `^0.8.34` |
+| CVF-7 | Minor | `IAccount` / `PackedUserOperation` interfaces not reviewed | Acknowledged: out of scope; from audited upstream account-abstraction v0.9.0 |
+| CVF-8 | Minor | Custom errors lack parameters | Fixed: `Unauthorized()` → `Unauthorized(address caller)` |
+| CVF-9 | Minor | Hardcoded ERC-7201 storage slot instead of expression | Obsolete: entire storage system removed by CVF-1 fix |
+| CVF-10 | Minor | Empty `receive()` / `fallback()` blocks lack inline comments | Fixed: `// Intentionally empty:` comments added |
+| CVF-11 | Minor | Version string hardcoded instead of named constant | Fixed: `string private constant VERSION` introduced |
+| CVF-12 | Minor | `supportsInterface` uses raw `bytes4` magic literals | Fixed: replaced with `type(...).interfaceId` and `.selector` expressions |
+
+A full diff of all changes between v0.3.0 and v1.0.0 is documented in [`doc/DIFFv0.3.0_1.0.0.md`](doc/DIFFv0.3.0_1.0.0.md).
+
 ### Tools
 
 #### Aderyn
